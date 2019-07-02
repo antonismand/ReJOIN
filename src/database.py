@@ -16,13 +16,17 @@ class Database:
         except (Exception, psycopg2.Error) as error:
             print("Error connecting")
 
-    def get_tables(self):
+    def get_tables_attributes(self):
         cursor = self.conn.cursor()
-        q = "SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname='public'"
+        q = "SELECT c.table_name, c.column_name FROM information_schema.columns c " \
+            "INNER JOIN information_schema.tables t ON c.table_name = t.table_name " \
+            "AND c.table_schema = t.table_schema " \
+            "AND t.table_type = 'BASE TABLE' " \
+            "AND t.table_schema = 'public'"
         cursor.execute(q)
         rows = cursor.fetchall()
         cursor.close()
-        return [row[0] for row in rows]
+        return [row for row in rows]
 
     def close(self):
         if self.conn:

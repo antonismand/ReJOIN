@@ -4,6 +4,7 @@ import os
 from src.state import *
 from src.database import *
 
+
 def make_args_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='../join-order-benchmark/queries',
@@ -24,17 +25,34 @@ def main():
     print_config(args)
 
     db = Database()
-    tables = db.get_tables()
+    row = db.get_tables_attributes()
+
+    tables_attributes = {}
+    for table, attribute in row:
+        if table in tables_attributes:
+            tables_attributes[table].append(attribute)
+        else:
+            tables_attributes[table] = [attribute]
+
+    tables = list(tables_attributes.keys())
+    # print(tables)
+    attributes = []
+    for k in tables_attributes:
+        attributes = attributes + [k + "." + v for v in tables_attributes[k]]
+    # print(attributes)
+
     files = os.listdir(args.dataset)
     for file_name in files:
         file = open(args.dataset + "/" + file_name, 'r')
 
         query = file.read()
 
-        initial_state = StateVector(query,tables)
+        initial_state = StateVector(query, tables, attributes)
         print(initial_state.join_predicates)
-        print(query)
-        print(db.get_query_time(query))
+        print(initial_state.selection_predicates)
+
+        # print(query)
+        # print(db.get_query_time(query))
         break
 
     db.close()
