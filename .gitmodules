@@ -1,0 +1,9 @@
+[submodule "postgres"]
+	path = postgres
+	url = https://github.com/postgres/postgres.git
+[submodule "join-order-benchmark"]
+	path = join-order-benchmark
+	url = https://github.com/gregrahn/join-order-benchmark.git
+[submodule "sql-parser"]
+	path = sql-parser
+	url = https://github.com/hyrise/sql-parser.git
