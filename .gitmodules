@@ -7,3 +7,6 @@
 [submodule "sql-parser"]
 	path = sql-parser
 	url = https://github.com/hyrise/sql-parser.git
+[submodule "sqlparse"]
+	path = sqlparse
+	url = https://github.com/andialbrecht/sqlparse.git
