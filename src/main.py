@@ -1,14 +1,11 @@
 import argparse
 import logging
 import os
-
-from tensorflow.python.tools import import_pb_to_tensorboard
-
 from state import *
 
 def make_args_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='join-order-benchmark',
+    parser.add_argument('--dataset', default='../join-order-benchmark/queries',
                         help='Define the relative path of the dataset directory')
 
     return parser.parse_args()
@@ -26,14 +23,13 @@ def main():
     print_config(args)
 
     files = os.listdir(args.dataset)
-
     for file_name in files:
         file = open(args.dataset + "/" + file_name, 'r')
+
         query = file.read()
-        # print(query)
 
-        initial_state = State(query)
-
+        initial_state = StateVector(query)
+        print(initial_state.join_predicates)
 
         break
 
