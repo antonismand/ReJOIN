@@ -1,7 +1,8 @@
 import argparse
 import logging
 import os
-from state import *
+from src.state import *
+from src.database import *
 
 def make_args_parser():
     parser = argparse.ArgumentParser()
@@ -22,18 +23,21 @@ def main():
     args = make_args_parser()
     print_config(args)
 
+    db = Database()
+    tables = db.get_tables()
     files = os.listdir(args.dataset)
     for file_name in files:
         file = open(args.dataset + "/" + file_name, 'r')
 
         query = file.read()
 
-        initial_state = StateVector(query)
+        initial_state = StateVector(query,tables)
         print(initial_state.join_predicates)
-
+        print(query)
+        print(db.get_query_time(query))
         break
 
-
+    db.close()
 
     # drl_model = Model()
     # drl_model.train(dataset, hyperparameters)
