@@ -37,6 +37,9 @@ class Database:
         cursor = self.conn.cursor()
         cursor.execute(query)
         rows = cursor.fetchall()
+        cursor.close()
+        return rows[0][0][0]['Plan']['Total Cost']
+
 
     def get_query_time(self, query):
         query = "EXPLAIN ANALYZE " + query
@@ -46,7 +49,7 @@ class Database:
         planning = [float(s) for s in rows[-2][0].split() if self.is_number(s)]
         execution = [float(s) for s in rows[-1][0].split() if self.is_number(s)]
         cursor.close()
-        return planning, execution
+        return planning[0], execution[0]
 
     def is_number(self, s):
         try:
@@ -54,3 +57,4 @@ class Database:
             return True
         except ValueError:
             return False
+

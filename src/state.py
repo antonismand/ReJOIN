@@ -1,6 +1,5 @@
 from moz_sql_parser import parse
 import json
-import re
 
 
 class StateVector:

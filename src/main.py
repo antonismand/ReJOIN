@@ -3,6 +3,8 @@ import logging
 import os
 from src.state import *
 from src.database import *
+import csv
+
 
 
 def make_args_parser():
@@ -20,9 +22,31 @@ def print_config(args):
         print('\t', key, '->', arg_map[key])
 
 
+def get_times():
+    args = make_args_parser()
+    db = Database()
+    files = os.listdir(args.dataset)
+    results = []
+    for file_name in files:
+        file = open(args.dataset + "/" + file_name, 'r')
+        query = file.read()
+
+        planning, execution = db.get_query_time(query)
+        cost = db.optimizer_cost(query)
+        results.append((file_name, planning, execution, cost))
+        print(file_name, "Planning time:", planning, "Execution time:", execution, 'Cost:', cost)
+
+        with open('times.csv', 'w', newline='') as out:
+            csv_out = csv.writer(out)
+            csv_out.writerow(['query', 'planning', 'execution', 'cost'])
+            for row in results:
+                csv_out.writerow(row)
+        # break
+
+
 def main():
     args = make_args_parser()
-    print_config(args)
+    # print_config(args)
 
     db = Database()
     row = db.get_tables_attributes()
@@ -54,7 +78,7 @@ def main():
         # print(query)
         # print(db.get_query_time(query))
         break
-
+    get_times()
     db.close()
 
     # drl_model = Model()
