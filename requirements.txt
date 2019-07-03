@@ -1,3 +1,5 @@
 
 psycopg2
 moz_sql_parser
+tensorforce
+gym

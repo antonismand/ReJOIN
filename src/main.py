@@ -6,7 +6,6 @@ from src.database import *
 import csv
 
 
-
 def make_args_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', default='../join-order-benchmark/queries',
