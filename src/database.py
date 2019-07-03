@@ -40,7 +40,6 @@ class Database:
         cursor.close()
         return rows[0][0][0]['Plan']['Total Cost']
 
-
     def get_query_time(self, query):
         query = "EXPLAIN ANALYZE " + query
         cursor = self.conn.cursor()
@@ -58,3 +57,8 @@ class Database:
         except ValueError:
             return False
 
+    def get_reward(self, query, episodes, phase):  # get reward from specific episode(tuples of joins)
+        query = query  # todo reorder query from tree
+        if phase == 1:
+            return self.optimizer_cost(query)
+        return self.get_query_time(query)[1]

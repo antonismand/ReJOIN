@@ -54,7 +54,6 @@ class StateVector:
         join_predicate_vector = [0 for x in range(attrs_num)]
         # print(attrs_num)
         for x in results:
-            print(self.attributes.index(x))
             join_predicate_vector[self.attributes.index(x)] = 1
 
         return join_predicate_vector

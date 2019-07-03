@@ -71,18 +71,45 @@ def main():
         query = file.read()
 
         initial_state = StateVector(query, tables, attributes)
-        print(initial_state.join_predicates)
-        print(initial_state.selection_predicates)
+        #print(initial_state.join_predicates)
+        #print(initial_state.selection_predicates)
 
         # print(query)
         # print(db.get_query_time(query))
         break
-    get_times()
+    #get_times()
     db.close()
 
     # drl_model = Model()
     # drl_model.train(dataset, hyperparameters)
     # drl_model.save()
+
+
+# def action_space():
+#     #jp = self.observation_space[1]
+#     #states = self.observation_space[0]
+#     jp = [
+#         [0, 0, 1, 0],
+#         [0, 0, 1, 1],
+#         [1, 1, 0, 0],
+#         [0, 1, 0, 0],
+#     ]
+#     states = [
+#         [1/2, 0, 1/2, 0],
+#         [0, 1, 0, 0],
+#         [0, 0, 0, 1],
+#         #[0, 0, 0, 1],
+#     ]
+#     action_space = []
+#     for i in range(0, len(states)):
+#         for j in range(i + 1, len(states)):
+#             for idx1, val1 in enumerate(states[i]):
+#                 for idx2, val2 in enumerate(states[j]):
+#                     if val1 != 0 and val2 != 0 and jp[idx1][idx2] == 1:
+#                         action_space.append((i, j))
+#
+#     print(action_space)
+#     return True
 
 
 if __name__ == '__main__':
