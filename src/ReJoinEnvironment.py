@@ -1,19 +1,15 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Rejoin Environment
 """
 
-# core modules
-
-import random
-
-# 3rd party modules
-from gym import spaces
-import gym
-import numpy as np
 from src.database import Database
+from src.state import StateVector
+from gym import spaces
+import numpy as np
+import random
+import gym
+import os
 
 
 class ReJOINEnv(gym.Env):
@@ -22,40 +18,61 @@ class ReJOINEnv(gym.Env):
     when the agent receives which reward.
     """
 
-    def __init__(self, query, max_steps, phase):  # max_steps = number of joins
-        # self.__version__ = "0.1.0"
+    def __init__(self, dataset, tables, attributes, phase):
 
-        # General variables defining the environment
-        self.TABLES = 21  # todo correct it later
+        self.tables = tables
+        self.tables_num = len(tables)
+        self.attributes = attributes
+        self.attrs_num = len(attributes)
+        self.dataset = dataset
 
-        self.curr_step = -1
+        self.curr_step = 0
+        self.curr_episode = 0
         self.is_final = False
-        self.query = query  # not sure if string or something else
         self.phase = phase
-        self.max_steps = max_steps
 
-        # Define what the agent can do
-        self.action_space = spaces.Tuple(
-            [spaces.Discrete(self.TABLES), spaces.Discrete(self.TABLES)])  # todo ?
+        self.file_names = os.listdir(dataset)
 
-        low = np.array([1 / max_steps, ])
-        high = np.array([1, ])
-        self.observation_space = spaces.Tuple((
-            spaces.Box(low, high, dtype=np.float32),  # tree
-            spaces.Box(np.array([0, ]), high, dtype=np.int),  # join predicates
-            spaces.Box(np.array([0, ]), high, dtype=np.int)  # todo fix this selection predicates
-        ))
-        # Store what the agent tried
-        self.curr_episode = -1
-        self.action_episode_memory = []
+        # Define action and observation spaces
+        low = 0
+        high = 1
+        self.action_space = spaces.Tuple([spaces.Discrete(self.tables), spaces.Discrete(self.tables)])  # todo ?
+        self.observation_space = spaces.Box(low=low, high=high, shape=(self.tables_num, self.tables_num), dtype=np.float32)    # TreeVector (for now use only this)
+
+        # self.action_space = spaces.MultiDiscrete([(1, self.tables), (1, self.tables)])
+        # self.observation_space = spaces.Tuple((
+            # spaces.Box(low=low, high=high, shape=(self.tables_num, self.tables_num), dtype=np.float32),         # TreeVector
+            # spaces.Box(low=low, high=high, shape=(self.tables_num, self.tables_num), dtype=np.float32),         # Join Predicates
+            # spaces.Box(low, high, shape=(self.attrs_num,), dtype=np.uint8)                                    # Selection predicates
+        # ))
+
+        # high = np.array([1, ]
+        # )
+        # self.observation_space = spaces.Tuple((
+        #     spaces.Box(low, high, dtype=np.float32),  # tree
+        #     spaces.Box(np.array([0, ]), high, dtype=np.int),  # join predicates
+        #     spaces.Box(np.array([0, ]), high, dtype=np.int)  # todo fix this selection predicates
+        # ))
+
+        # Read first query
+        self.curr_query = self.read_next_query(self.dataset, self.file_names[self.curr_episode])
+        self.curr_state = StateVector(self.curr_query, self.tables, self.attributes)
+        # print(self.curr_state.join_predicates)
+        # print(self.curr_state.selection_predicates)
+
+        self.max_steps = self.curr_state.number_of_joins  # ToDo :  max_steps = number of joins
+
+        # Store past actions-per-episode
+        # self.action_episode_memory = []
 
     def step(self, action):
+
         """
         The agent takes a step in the environment.
 
         Parameters
         ----------
-        action : int
+        action : [int,int]
 
         Returns
         -------
@@ -73,19 +90,21 @@ class ReJOINEnv(gym.Env):
                 being True indicates the episode has terminated. (For example,
                 perhaps the pole tipped too far, or you lost your last life.)
             info (dict) :
-                 diagnostic information useful for debugging. It can sometimes
-                 be useful for learning (for example, it might contain the raw
-                 probabilities behind the environment's last state change).
+                 diagnostic information useful for debugging. It can sometimesBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hold), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).But this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete numbeBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hold), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).r of action types (buy, sell, and hold), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).
+                 be useful for learning (for example, it might contain the rawBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hold), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).But this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hold), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).
+                 probabilities behind the environment's last state change).But this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hold), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).
                  However, official evaluations of your agent are not allowed to
                  use this for learning.
         """
         if self.is_final:
             raise RuntimeError("Episode is done")
-        self.curr_step += 1
+
         self._take_action(action)
         reward = self._get_reward()
-        ob = self._get_state()  # remove
+        ob = self._get_state()  # removeBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hBut this isn’t enough; we need to know the amount of a given stock to buy or sell each time. Using gym’s Box space, we can create an action space that has a discrete number of action types (buy, sell, and hold), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).old), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).old), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).old), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).old), as well as a continuous spectrum of amounts to buy/sell (0-100% of the account balance/position size respectively).
         # ob = self.env.getState()
+        self.curr_step += 1
+
         return ob, reward, self.is_final, {}
 
     def _take_action(self, action):
@@ -107,6 +126,7 @@ class ReJOINEnv(gym.Env):
             return 0.0
 
     def reset(self):
+
         """
         Reset the state of the environment and returns an initial observation.
 
@@ -115,10 +135,19 @@ class ReJOINEnv(gym.Env):
         observation (object): the initial observation of the space.
         """
         self.curr_step = -1
-        self.curr_episode += 1
-        self.action_episode_memory.append([])
         self.is_final = False
-        return self._get_state()
+        # self.action_episode_memory.append([])         # ToDo : important to keep track of past actions for reconstructing the query with the explicit join ordering
+        self.curr_episode += 1
+
+        # Read next query
+        self.curr_query = self.read_next_query(self.dataset, self.file_names[self.curr_episode])
+        state = StateVector(self.curr_query, self.tables, self.attributes)
+        print(state.join_predicates)
+        print(state.selection_predicates)
+
+        self.max_steps = state.number_of_joins  # ToDo
+
+        return state
 
     def _render(self, mode='human', close=False):
         return
@@ -159,3 +188,12 @@ class ReJOINEnv(gym.Env):
                             action_space.append((i, j))
 
         return action_space
+
+    def read_next_query(self, dataset, file_name):
+
+        file = open(dataset + "/" + file_name, 'r')
+        query = file.read()
+        # print(query)
+        # print(db.get_query_time(query))
+
+        return query

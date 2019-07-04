@@ -6,6 +6,7 @@ from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from src.reJoinEnvironment import ReJoin
+from src.ReJoinEnvironment import ReJOINEnv
 import argparse
 import logging
 import sys
@@ -78,6 +79,8 @@ def main():
 
     # Initialize environment (openAI or tensorforce)
     environment = ReJoin(args.dataset, tables, attributes)
+    environment = ReJOINEnv(args.dataset, tables, attributes)
+
 
     if args.agent_config is not None:
         with open(args.agent_config, 'r') as fp:
