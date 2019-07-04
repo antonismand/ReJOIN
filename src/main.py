@@ -5,7 +5,7 @@ from __future__ import print_function
 from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
-from src.reJoinEnvironment import ReJoin
+from src.reJoinEnv import ReJoin
 from src.ReJoinEnvironment import ReJOINEnv
 import argparse
 import logging

@@ -14,7 +14,7 @@ import json
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 # from tensorforce.contrib.ale import ALE
-from src.reJoinEnvironment import ReJoin
+from src.reJoinEnv import ReJoin
 
 
 def main():
