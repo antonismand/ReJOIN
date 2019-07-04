@@ -20,14 +20,9 @@ from src.reJoinEnvironment import ReJoin
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('rom', help="File path of the rom")
     parser.add_argument('-a', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
-    parser.add_argument('-fs', '--frame-skip', help="Number of frames to repeat action", type=int, default=1)
     parser.add_argument('-rap', '--repeat-action-probability', help="Repeat action probability", type=float, default=0.0)
-    parser.add_argument('-lolt', '--loss-of-life-termination', help="Loss of life counts as terminal state", action='store_true')
-    parser.add_argument('-lolr', '--loss-of-life-reward', help="Loss of life reward/penalty. EX: -1 to penalize", type=float, default=0.0)
-    parser.add_argument('-ds', '--display-screen', action='store_true', default=False, help="Display emulator screen")
     parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-s', '--save', help="Save agent to this dir")
@@ -40,11 +35,7 @@ def main():
     logger.setLevel(logging.DEBUG)  # configurable!!!
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
-    environment = ReJoin(args.rom, frame_skip=args.frame_skip,
-                      repeat_action_probability=args.repeat_action_probability,
-                      loss_of_life_termination=args.loss_of_life_termination,
-                      loss_of_life_reward=args.loss_of_life_reward,
-                      display_screen=args.display_screen)
+    environment = ReJoin()
 
     if args.agent_config is not None:
         with open(args.agent_config, 'r') as fp:

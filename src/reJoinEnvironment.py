@@ -2,57 +2,67 @@ from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
 
-import numpy as np
-
 from tensorforce.environments import Environment
+from src.database import Database
+from src.state import StateVector
+
+import numpy as np
+import os
 
 
 class ReJoin(Environment):
 
-    def __init__(
-        self,
-        repeat_action_probability=0.0,
-        tables=21,
-        display_screen=False,
-        seed=np.random.RandomState()
-    ):
+    def __init__(self, dataset, tables, attributes):
 
-        self.stateObject = np.empty((tables, tables), dtype=np.uint8)
-
-        # # Setup action converter.
-        # # ALE returns legal action indexes, convert these to just numbers.
-        # self.action_inds = self.ale.getMinimalActionSet()
+        self.tables = tables
+        self.attributes = attributes
+        self.dataset = dataset
+        self.episode = 0
+        self.file_names = os.listdir(dataset)
+        filename = self.file_names[self.episode]
+        file = open(dataset + "/" + filename, 'r')
+        self.query = file.read()
+        state = StateVector(self.query, self.tables, self.attributes)
+        print(state.join_predicates)
+        print(state.selection_predicates)
+        # print(query)
+        # print(db.get_query_time(query))
 
     def __str__(self):
-        return 'ALE({})'.format(self.rom)
+        return ""
 
     def close(self):
-        self.ale = None
+        print("Close")
 
     def seed(self, seed):
+
         """
         Sets the random seed of the environment to the given value (current time, if seed=None).
         Naturally deterministic Environments (e.g. ALE or some gym Envs) don't have to implement this method.
-
         Args:
             seed (int): The seed to use for initializing the pseudo-random number generator (default=epoch time in sec).
         Returns: The actual seed (int) used OR None if Environment did not override this method (no seeding supported).
         """
-        return None
+        return np.random.RandomState(seed)
 
     def reset(self):
 
         """
         Reset environment and setup for new episode.
-
         Returns:
             initial state of reset environment.
         """
 
-        # self.ale.reset_game()
-        # Clear stateObject.
-        self.stateObject = np.empty(self.stateObject.shape, dtype=np.uint8)
-        return self.current_state
+        # Create a new initial state
+        self.episode = self.episode + 1
+        filename = self.file_names[self.episode]
+        file = open(self.dataset + "/" + filename, 'r')
+        self.query = file.read()
+        state = StateVector(self.query, self.tables, self.attributes)
+        print(state.join_predicates)
+        print(state.selection_predicates)
+
+        return state
 
     def execute(self, action):
 
@@ -66,14 +76,16 @@ class ReJoin(Environment):
             Tuple of (next state, bool indicating terminal, reward)
         """
 
-        # Convert action to ale action.
-        ale_action = self.action_inds[action]
-
         # Get reward and process terminal & next state.
-        reward = get_reward()
         terminal = self.is_terminal
-        state_tp1 = self.current_state
-        return state_tp1, terminal, reward
+        next_state = self.get_next_state(action)
+
+        if terminal:
+            reward = self.get_reward(next_state)
+        else:
+            reward = 0
+
+        return next_state, terminal, reward
 
     @property
     def states(self):
@@ -89,7 +101,7 @@ class ReJoin(Environment):
                 - shape: integer, or list/tuple of integers (required).
         """
 
-        return dict(shape=self.stateObject.shape, type=int)
+        return dict(shape=(self.tables, self.tables), type=int)
 
     @property
     def actions(self):
@@ -107,40 +119,65 @@ class ReJoin(Environment):
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
 
-        return dict(type='int', num_actions=len(self.action_inds))
+        return dict(type='int', shape=(2,), num_actions=self.tables*self.tables)
 
     @property
-    def current_state(self):
-        self.gamescreen = self.ale.getScreenRGB(self.gamescreen)
-        return np.copy(self.gamescreen)
+    def get_next_state(self, action):
+
+        states = self.observation_space[0]
+        s = self._join(states[action[0]], states[action[1]])
+        del states[max(action[0], action[1])]
+        del states[min(action[0], action[1])]
+        states.append(s)
+        raise NotImplementedError
+
 
     @property
     def is_terminal(self):
-        if self.loss_of_life_termination and self.life_lost:
-            return True
-        else:
-            return self.ale.game_over()
+        raise NotImplementedError
 
-    @property
-    def action_names(self):
-        action_names = [
-            'No-Op',
-            'Fire',
-            'Up',
-            'Right',
-            'Left',
-            'Down',
-            'Up Right',
-            'Up Left',
-            'Down Right',
-            'Down Left',
-            'Up Fire',
-            'Right Fire',
-            'Left Fire',
-            'Down Fire',
-            'Up Right Fire',
-            'Up Left Fire',
-            'Down Right Fire',
-            'Down Left Fire'
-        ]
-        return np.asarray(action_names)[self.action_inds]
+    def get_reward(self, final_state):
+        # """Reward is given for the final state."""
+        #
+        # explitic_joins_query = create_query(final_state)
+        # if self.is_final:
+        #     return 1 / Database.get_reward(explitic_joins_query, self.action_episode_memory, self.phase)
+        # else:
+        #     return 0.0
+        raise NotImplementedError
+
+    def create_query(self, final_state):
+
+        """
+        param: next_state
+        returns: query with explicit join ordering selections
+        """
+        # Gonna use old query self.query and the join ordering as described by final_state
+
+        raise NotImplementedError
+
+
+    # def _join(self, s1, s2):
+    #     # 0 1 0 0 0
+    #     # 0 0 1 0 0
+    #     result = [0] * self.TABLES
+    #     for i in range(0, self.TABLES):
+    #         if s1[i] != 0:
+    #             result[i] = s1[i] / 2
+    #         elif s2[i] != 0:
+    #             result[i] = s2[i] / 2
+    #     return result
+    #     # 0 1/2 1/2 0 0
+    #
+    # def _action_space(self):
+    #     jp = self.observation_space[1]
+    #     states = self.observation_space[0]
+    #     action_space = []
+    #     for i in range(0, len(states)):
+    #         for j in range(i + 1, len(states)):
+    #             for idx1, val1 in enumerate(states[i]):
+    #                 for idx2, val2 in enumerate(states[j]):
+    #                     if val1 != 0 and val2 != 0 and jp[idx1][idx2] == 1:
+    #                         action_space.append((i, j))
+    #
+    #     return action_space

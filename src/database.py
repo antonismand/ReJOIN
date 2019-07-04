@@ -26,7 +26,19 @@ class Database:
         cursor.execute(q)
         rows = cursor.fetchall()
         cursor.close()
-        return [row for row in rows]
+
+        tables_attributes = {}
+        for table, attribute in rows:
+            if table in tables_attributes:
+                tables_attributes[table].append(attribute)
+            else:
+                tables_attributes[table] = [attribute]
+
+        tables = list(tables_attributes.keys())
+        attributes = []
+        for k in tables_attributes:
+            attributes = attributes + [k + "." + v for v in tables_attributes[k]]
+        return tables, attributes
 
     def close(self):
         if self.conn:
