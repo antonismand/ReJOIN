@@ -20,15 +20,18 @@ import csv
 
 def make_args_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default='../join-order-benchmark/queries', help='Define the relative path of the dataset directory')
+    parser.add_argument('--dataset', default='../join-order-benchmark/queries',
+                        help='Define the relative path of the dataset directory')
     parser.add_argument('-a', '--agent-config', help="Agent configuration file")
     parser.add_argument('-n', '--network-spec', default=None, help="Network specification file")
-    parser.add_argument('-rap', '--repeat-action-probability', help="Repeat action probability", type=float, default=0.0)
+    parser.add_argument('-rap', '--repeat-action-probability', help="Repeat action probability", type=float,
+                        default=0.0)
     parser.add_argument('-e', '--episodes', type=int, default=50000, help="Number of episodes")
     parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
     parser.add_argument('-s', '--save', help="Save agent to this dir")
     parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save agent every x episodes")
     parser.add_argument('-l', '--load', help="Load agent from this dir")
+    parser.add_argument('-p', '--phase', help="Select phase (1 or 2)", default=1)
 
     return parser.parse_args()
 
@@ -72,15 +75,13 @@ def main():
 
     # Connect to database
     db = Database()
-    tables, attributes = db.get_tables_attributes()
     # get_times()
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
     # Initialize environment (openAI or tensorforce)
-    environment = ReJoin(args.dataset, tables, attributes)
-    environment = ReJOINEnv(args.dataset, tables, attributes)
-
+    environment = ReJoin(args.dataset, db, args.phase)
+    # environment = ReJOINEnv(args.dataset, tables, attributes)
 
     if args.agent_config is not None:
         with open(args.agent_config, 'r') as fp:
@@ -107,13 +108,14 @@ def main():
 
     # ~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~ #
 
-
     report_episodes = 10
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
             sps = r.timestep / (time.time() - r.start_time)
-            logger.info("Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep, sps=sps))
+            logger.info(
+                "Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(ep=r.episode, ts=r.timestep,
+                                                                                            sps=sps))
             logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
             logger.info("Average of last 500 rewards: {}".format(sum(r.episode_rewards[-500:]) / 500))
             logger.info("Average of last 100 rewards: {}".format(sum(r.episode_rewards[-100:]) / 100))
@@ -128,16 +130,7 @@ def main():
 
     environment.close()
 
-
-
-
-
-
-
-
-
     db.close()
-
 
 
 # def action_space():

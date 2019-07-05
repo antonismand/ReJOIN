@@ -1,11 +1,14 @@
 import psycopg2
 import database_env as creds
 
+from moz_sql_parser import parse
+
 
 class Database:
 
     def __init__(self):
         self.conn = self.connect()
+        self.tables, self.attributes = self.get_tables_attributes()
 
     def connect(self):
         try:
@@ -69,8 +72,64 @@ class Database:
         except ValueError:
             return False
 
-    def get_reward(self, query, episodes, phase):  # get reward from specific episode(tuples of joins)
+    def get_reward(self, query, phase):  # get reward from specific episode(tuples of joins)
         query = query  # todo reorder query from tree
         if phase == 1:
             return self.optimizer_cost(query)
         return self.get_query_time(query)[1]
+
+    def construct_query(self, query, state_vector, history):  # query string , history = [(1,2),(2,4)]
+
+        query_moz = parse(query)
+        query = ""  # remove join conditions
+
+        # "bla.id = xa.id" -> (0,1)
+        # [(0,1) = 'bla.id = xa.id']
+
+        aliases = state_vector.aliases  # {'alias' : (0,'table name')}
+
+        query = ''  # append join condition 1 by 1
+        joins = []
+        tree = state_vector.tree_structure
+        join_predicates = state_vector.join_predicates
+        for pair in history:
+            # (1,2)
+            s1 = tree[pair[0]]
+            s2 = tree[pair[1]]
+            tables_s1, tables_s2 = []
+            for k, t in enumerate(s1):
+                if t != 0:
+                    tables_s1.append(k)
+            for k, t in enumerate(s2):
+                if t != 0:
+                    tables_s2.append(k)
+
+            # [ 1/2  0  1/2  0] -> (0,2) A,C
+            # [ 0  1  0  1] -> (1,4) B,D
+
+            once = True
+            for t in tables_s1:
+                for t2 in tables_s2:
+                    if join_predicates[t][t2] == 1 and once:
+                        joins.append((t, t2))
+                        once = False
+
+            s = self._join(s1, s2)
+            del tree[max(pair[0], pair[1])]
+            del tree[min(pair[0], pair[1])]
+            tree.append(s)
+            tree.append([0] * len(self.tables))
+        # [(1,3), (4,6)]        tables
+
+        return query
+
+    def _join(self, s1, s2):
+        # 0 1 0 0 0
+        # 0 0 1 0 0
+        result = [0] * self.TABLES
+        for i in range(0, self.TABLES):
+            if s1[i] != 0:
+                result[i] = s1[i] / 2
+            elif s2[i] != 0:
+                result[i] = s2[i] / 2
+        return result

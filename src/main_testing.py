@@ -48,46 +48,58 @@ def get_times():
         # break
 
 
-def main():
-    args = make_args_parser()
-    # print_config(args)
+args = make_args_parser()
+# print_config(args)
 
-    db = Database()
-    row = db.get_tables_attributes()
+db = Database()
+tables, attributes = db.get_tables_attributes()
 
-    tables_attributes = {}
-    for table, attribute in row:
-        if table in tables_attributes:
-            tables_attributes[table].append(attribute)
-        else:
-            tables_attributes[table] = [attribute]
+files = os.listdir(args.dataset)
+for file_name in files:
+    file = open(args.dataset + "/" + file_name, 'r')
 
-    tables = list(tables_attributes.keys())
-    # print(tables)
-    attributes = []
-    for k in tables_attributes:
-        attributes = attributes + [k + "." + v for v in tables_attributes[k]]
-    # print(attributes)
+    query = file.read()
 
-    files = os.listdir(args.dataset)
-    for file_name in files:
-        file = open(args.dataset + "/" + file_name, 'r')
+    initial_state, join_num = StateVector(query, tables, attributes).vectorize()
 
-        query = file.read()
+    state_vector = StateVector(query, tables, attributes)
+    # print(initial_state)
+    print(query)
 
-        initial_state = StateVector(query, tables, attributes)
-        #print(initial_state.join_predicates)
-        #print(initial_state.selection_predicates)
+    query_moz = parse(query)
+    # (0,1) -> "bla.id = xa.id"
+    join_map = {}
+    aliases = state_vector.aliases  # {'alias' : (0,'table name')}
+    for v in query_moz['where']['and']:
+        if 'eq' in v and isinstance(v['eq'][0], str) and isinstance(v['eq'][1], str):
+            # join_map.append((v['eq'][0].split('.')[0], v['eq'][1].split('.')[0]))
+            alias1 = v['eq'][0].split('.')[0]
+            alias2 = v['eq'][1].split('.')[0]
+            t1 = aliases[alias1][0]
+            t2 = aliases[alias2][0]
+            # print("alias:", alias1, "=", alias2, " Tables:", t1, "=", t2)
+            join_map[(t1, t2)] = v['eq']
 
-        # print(query)
-        # print(db.get_query_time(query))
-        break
-    #get_times()
-    db.close()
+    for v in query_moz['where']['and']:
+        if 'eq' in v and isinstance(v['eq'][0], str) and isinstance(v['eq'][1], str):
+            print(v['eq'])
+            # todo
 
-    # drl_model = Model()
-    # drl_model.train(dataset, hyperparameters)
-    # drl_model.save()
+    # print(aliases)
+    print(join_map)
+
+    # print(initial_state.join_predicates)
+    # print(initial_state['selection_predicates'])
+
+    # print(query)
+    # print(db.get_query_time(query))
+    break
+# get_times()
+db.close()
+
+# drl_model = Model()
+# drl_model.train(dataset, hyperparameters)
+# drl_model.save()
 
 
 # def action_space():
@@ -115,7 +127,3 @@ def main():
 #
 #     print(action_space)
 #     return True
-
-
-if __name__ == '__main__':
-    main()
