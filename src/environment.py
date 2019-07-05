@@ -3,7 +3,6 @@ from __future__ import print_function
 from __future__ import division
 
 from tensorforce.environments import Environment
-from src.database import Database
 from src.state import StateVector
 
 import numpy as np
@@ -11,7 +10,6 @@ import os
 
 
 class ReJoin(Environment):
-
     def __init__(self, dataset, database, phase):
 
         self.tables = database.tables
@@ -24,6 +22,7 @@ class ReJoin(Environment):
         self.file_names = os.listdir(dataset)
         self.phase = phase
         self.memory_actions = []
+        self.tables_joined = []
 
         # filename = self.file_names[self.episode_curr]
         # file = open(dataset + "/" + filename, 'r')
@@ -38,7 +37,6 @@ class ReJoin(Environment):
         print("Close")
 
     def seed(self, seed):
-
         """
         Sets the random seed of the environment to the given value (current time, if seed=None).
         Naturally deterministic Environments (e.g. ALE or some gym Envs) don't have to implement this method.
@@ -49,7 +47,6 @@ class ReJoin(Environment):
         return np.random.RandomState(seed)
 
     def reset(self):
-
         """
         Reset environment and setup for new episode.
         Returns:
@@ -58,10 +55,11 @@ class ReJoin(Environment):
 
         # Create a new initial state
         filename = self.file_names[self.episode_curr]
-        file = open(self.dataset + "/" + filename, 'r')
+        file = open(self.dataset + "/" + filename, "r")
         self.query = file.read()
         self.state_vector = StateVector(self.query, self.tables, self.attributes)
-        self.state, self.join_num = self.state_vector.vectorize
+        self.join_num = self.state_vector.join_num
+        self.state = self.state_vector.vectorize
         self.memory_actions = []
         self.episode_curr += 1
         # print(state.join_predicates)
@@ -69,7 +67,6 @@ class ReJoin(Environment):
         return self.state
 
     def execute(self, action):  # action = (0, 1, 2, .., 15)
-
         """
         Executes action, observes next state(s) and reward.
 
@@ -82,14 +79,15 @@ class ReJoin(Environment):
         self.step_curr += 1
         print("Step:", self.step_curr, " Join Num:", self.join_num)
         possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
-        print('Possible actions', possible_actions)
+        print("Possible actions", possible_actions)
 
         action = action % len(possible_actions)  # workaround hack
         action_pair = possible_actions[action]
-        print('Chose pair:', action_pair)
+        print("Chose pair:", action_pair)
         # Get reward and process terminal & next state.
         terminal = self.is_terminal
 
+        self._update_joins(action_pair)
         self._set_next_state(action_pair)
         self.memory_actions.append(action_pair)
 
@@ -102,7 +100,6 @@ class ReJoin(Environment):
 
     @property
     def states(self):
-
         """
         Return the state space. Might include subdicts if multiple states are
         available simultaneously.
@@ -114,9 +111,13 @@ class ReJoin(Environment):
                 - shape: integer, or list/tuple of integers (required).
         """
         states = dict()
-        states['tree_structure'] = dict(shape=(self.num_tables, self.num_tables), type='float')
-        states['join_predicates'] = dict(shape=(self.num_tables, self.num_tables), type='int')
-        states['selection_predicates'] = dict(shape=(self.num_attrs,), type='int')
+        states["tree_structure"] = dict(
+            shape=(self.num_tables, self.num_tables), type="float"
+        )
+        states["join_predicates"] = dict(
+            shape=(self.num_tables, self.num_tables), type="int"
+        )
+        states["selection_predicates"] = dict(shape=(self.num_attrs,), type="int")
         return states
 
     @property
@@ -134,8 +135,9 @@ class ReJoin(Environment):
                 - num_actions: integer (required if type == 'int').
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
-        return dict(type='int',
-                    num_actions=self.num_tables * self.num_tables - self.num_tables)  # Discrete value {1, 2,.., n} where n = #relations*#relations-#relations
+        return dict(
+            type="int", num_actions=self.num_tables * self.num_tables - self.num_tables
+        )  # Discrete value {1, 2,.., n} where n = #relations*#relations-#relations
 
     @property
     def is_terminal(self):
@@ -146,15 +148,17 @@ class ReJoin(Environment):
 
         if self.is_final:
             if self.phase == 1:
-                new_query = self.database.construct_query(self.query, self.state_vector, self.memory_actions)
+                new_query = self.database.construct_query(
+                    self.query, self.state_vector.aliases, self.memory_actions
+                )
                 return 1 / self.database.get_reward(new_query, self.phase)
             return 0.0
         else:
             return 0.0
 
     def _get_valid_actions(self):
-        jp = self.state['join_predicates']
-        states = self.state['tree_structure']
+        jp = self.state["join_predicates"]
+        states = self.state["tree_structure"]
         actions = []
         for i in range(0, len(states)):
             for j in range(i + 1, len(states)):
@@ -162,17 +166,43 @@ class ReJoin(Environment):
                     for idx2, val2 in enumerate(states[j]):
                         if val1 != 0 and val2 != 0 and jp[idx1][idx2] == 1:
                             actions.append((i, j))
-                            actions.append((j, i))  # ToDo:  Examine if this is redundant info during training
+                            actions.append(
+                                (j, i)
+                            )  # ToDo:  Examine if this is redundant info during training
         return actions
 
     def _set_next_state(self, action):
-        states = self.states['tree_structure']
+        states = self.states["tree_structure"]
         s = self._join(states[action[0]], states[action[1]])
         del states[max(action[0], action[1])]
         del states[min(action[0], action[1])]
         states.append(s)
         states.append([0] * len(self.num_tables))
-        self.states['tree_structure'] = states
+        self.states["tree_structure"] = states
+
+    def _update_joins(self, action):
+        tree = self.states["tree_structure"]
+        join_predicates = self.states["join_predicates"]
+        s1 = tree[action[0]]
+        s2 = tree[action[1]]
+        tables_s1, tables_s2 = []
+        for k, t in enumerate(s1):
+            if t != 0:
+                tables_s1.append(k)
+        for k, t in enumerate(s2):
+            if t != 0:
+                tables_s2.append(k)
+
+        # [ 1/2  0  1/2  0] -> (0,2) A,C
+        # [ 0  1  0  1] -> (1,4) B,D
+
+        once = True
+        for t in tables_s1:
+            for t2 in tables_s2:
+                if join_predicates[t][t2] == 1 and once:
+                    self.tables_joined.append((t, t2))
+                    print("Join:", self.tables[t], "⟕", self.tables[t2])
+                    once = False
 
     def _join(self, s1, s2):
         # 0 1 0 0 0

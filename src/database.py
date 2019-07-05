@@ -5,15 +5,24 @@ from moz_sql_parser import parse
 
 
 class Database:
-
     def __init__(self):
         self.conn = self.connect()
         self.tables, self.attributes = self.get_tables_attributes()
 
     def connect(self):
         try:
-            conn_string = "host=" + creds.PGHOST + " port=" + "5432" + " dbname=" + creds.PGDATABASE + " user=" + creds.PGUSER \
-                          + " password=" + creds.PGPASSWORD
+            conn_string = (
+                "host="
+                + creds.PGHOST
+                + " port="
+                + "5432"
+                + " dbname="
+                + creds.PGDATABASE
+                + " user="
+                + creds.PGUSER
+                + " password="
+                + creds.PGPASSWORD
+            )
             conn = psycopg2.connect(conn_string)
             return conn
         except (Exception, psycopg2.Error) as error:
@@ -21,11 +30,13 @@ class Database:
 
     def get_tables_attributes(self):
         cursor = self.conn.cursor()
-        q = "SELECT c.table_name, c.column_name FROM information_schema.columns c " \
-            "INNER JOIN information_schema.tables t ON c.table_name = t.table_name " \
-            "AND c.table_schema = t.table_schema " \
-            "AND t.table_type = 'BASE TABLE' " \
+        q = (
+            "SELECT c.table_name, c.column_name FROM information_schema.columns c "
+            "INNER JOIN information_schema.tables t ON c.table_name = t.table_name "
+            "AND c.table_schema = t.table_schema "
+            "AND t.table_type = 'BASE TABLE' "
             "AND t.table_schema = 'public'"
+        )
         cursor.execute(q)
         rows = cursor.fetchall()
         cursor.close()
@@ -53,7 +64,7 @@ class Database:
         cursor.execute(query)
         rows = cursor.fetchall()
         cursor.close()
-        return rows[0][0][0]['Plan']['Total Cost']
+        return rows[0][0][0]["Plan"]["Total Cost"]
 
     def get_query_time(self, query):
         query = "EXPLAIN ANALYZE " + query
@@ -72,56 +83,53 @@ class Database:
         except ValueError:
             return False
 
-    def get_reward(self, query, phase):  # get reward from specific episode(tuples of joins)
-        query = query  # todo reorder query from tree
+    def construct_query(self, query, aliases, joins):
+        query_moz = parse(query)
+        join_map = {}  # [ (12, 20): ['t.id', 'mc.movie_id'] , ..]
+        for v in query_moz["where"]["and"]:
+            print(v)
+            if (
+                "eq" in v
+                and isinstance(v["eq"][0], str)
+                and isinstance(v["eq"][1], str)
+            ):
+                # join_map.append((v['eq'][0].split('.')[0], v['eq'][1].split('.')[0]))
+                alias1 = v["eq"][0].split(".")[0]
+                alias2 = v["eq"][1].split(".")[0]
+                t1 = aliases[alias1][0]
+                t2 = aliases[alias2][0]
+                # print("alias:", alias1, "=", alias2, " Tables:", t1, "=", t2)
+                join_map[(min(t1, t2), max(t1, t2))] = v["eq"]
+
+        n = 0
+        for v in query_moz["where"]["and"]:
+            if (
+                "eq" in v
+                and isinstance(v["eq"][0], str)
+                and isinstance(v["eq"][1], str)
+            ):
+                # query_moz["where"]["and"][k]['eq'] = join_map[joins[n]]
+                replace = v["eq"][0] + " = " + v["eq"][1]
+                joins[n]
+                query = query.replace(
+                    replace, "|" + "-JOIN-".join(str(i) for i in joins[n]) + "|"
+                )
+                n += 1
+        for j in joins:
+            replace = "|" + str(j[0]) + "-JOIN-" + str(j[1]) + "|"
+            pred1 = join_map[j][0]
+            pred2 = join_map[j][1]
+            cond = pred1 + " = " + pred2
+            query = query.replace(replace, cond)
+
+        return query
+
+    def get_reward(self, query, phase):
+        # get reward from specific episode(tuples of joins)
+        # query = query  # todo reorder query from tree
         if phase == 1:
             return self.optimizer_cost(query)
         return self.get_query_time(query)[1]
-
-    def construct_query(self, query, state_vector, history):  # query string , history = [(1,2),(2,4)]
-
-        query_moz = parse(query)
-        query = ""  # remove join conditions
-
-        # "bla.id = xa.id" -> (0,1)
-        # [(0,1) = 'bla.id = xa.id']
-
-        aliases = state_vector.aliases  # {'alias' : (0,'table name')}
-
-        query = ''  # append join condition 1 by 1
-        joins = []
-        tree = state_vector.tree_structure
-        join_predicates = state_vector.join_predicates
-        for pair in history:
-            # (1,2)
-            s1 = tree[pair[0]]
-            s2 = tree[pair[1]]
-            tables_s1, tables_s2 = []
-            for k, t in enumerate(s1):
-                if t != 0:
-                    tables_s1.append(k)
-            for k, t in enumerate(s2):
-                if t != 0:
-                    tables_s2.append(k)
-
-            # [ 1/2  0  1/2  0] -> (0,2) A,C
-            # [ 0  1  0  1] -> (1,4) B,D
-
-            once = True
-            for t in tables_s1:
-                for t2 in tables_s2:
-                    if join_predicates[t][t2] == 1 and once:
-                        joins.append((t, t2))
-                        once = False
-
-            s = self._join(s1, s2)
-            del tree[max(pair[0], pair[1])]
-            del tree[min(pair[0], pair[1])]
-            tree.append(s)
-            tree.append([0] * len(self.tables))
-        # [(1,3), (4,6)]        tables
-
-        return query
 
     def _join(self, s1, s2):
         # 0 1 0 0 0
