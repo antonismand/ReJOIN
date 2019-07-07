@@ -5,17 +5,17 @@ from __future__ import print_function
 from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
-from src.reJoinEnv import ReJoin
-from src.ReJoinEnvironment import ReJOINEnv
+from src.environment import ReJoin
+from src.state import *
+from src.database import *
+
 import argparse
+import csv
 import logging
 import sys
 import time
 import json
 import os
-from src.state import *
-from src.database import *
-import csv
 
 
 def make_args_parser():
@@ -79,9 +79,8 @@ def main():
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
-    # Initialize environment (openAI or tensorforce)
+    # Initialize environment (tensorforce's template)
     environment = ReJoin(args.dataset, db, args.phase)
-    # environment = ReJOINEnv(args.dataset, tables, attributes)
 
     if args.agent_config is not None:
         with open(args.agent_config, 'r') as fp:
@@ -89,10 +88,11 @@ def main():
     else:
         raise TensorForceError("No agent configuration provided.")
 
-    network_spec = [
-        dict(type='dense', size=128, activation='relu'),
-        dict(type='dense', size=128, activation='relu')
-    ]
+    if args.network_spec is not None:
+        with open(args.network_spec, 'r') as fp:
+            network_spec = json.load(fp=fp)
+    else:
+        raise TensorForceError("No network configuration provided.")
 
     # Set up the PPO Agent
     agent = Agent.from_spec(
@@ -123,6 +123,7 @@ def main():
 
     logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
 
+    sys.exit(0)
     # Start Training
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
     runner.close()

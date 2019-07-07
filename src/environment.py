@@ -110,13 +110,10 @@ class ReJoin(Environment):
                 - type: one of 'bool', 'int', 'float' (default: 'float').
                 - shape: integer, or list/tuple of integers (required).
         """
-        states = dict()
-        states["tree_structure"] = dict(
-            shape=(self.num_tables, self.num_tables), type="float"
-        )
-        states["join_predicates"] = dict(
-            shape=(self.num_tables, self.num_tables), type="int"
-        )
+
+        states = dict(shape=3)
+        states["tree_structure"] = dict(shape=(self.num_tables, self.num_tables), type="float")
+        states["join_predicates"] = dict(shape=(self.num_tables, self.num_tables), type="int")
         states["selection_predicates"] = dict(shape=(self.num_attrs,), type="int")
         return states
 
@@ -135,9 +132,9 @@ class ReJoin(Environment):
                 - num_actions: integer (required if type == 'int').
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
-        return dict(
-            type="int", num_actions=self.num_tables * self.num_tables - self.num_tables
-        )  # Discrete value {1, 2,.., n} where n = #relations*#relations-#relations
+        # Discrete value {1, 2,.., n} where n = (num_relations*num_relations)-num_relations
+        return dict(type="int", num_actions=self.num_tables * self.num_tables)   # - self.num_tables ignore for now
+
 
     @property
     def is_terminal(self):

@@ -86,3 +86,15 @@ class StateVector:
         states["join_predicates"] = self.join_predicates
         states["selection_predicates"] = self.selection_predicates
         return states
+
+    def print_state(self):             # Print for debugging
+        print("\nTree-Structure:\n")
+        print(np.array(self.tree_structure))
+        print(np.array(self.tree_structure).shape)
+        print("\nJoin-Predicates:\n")
+        print(np.array(self.join_predicates))
+        print(np.array(self.join_predicates).shape)
+        print("\nSelection-Predicates:\n")
+        print(np.array(self.selection_predicates))
+        print(np.array(self.selection_predicates).shape)
+
