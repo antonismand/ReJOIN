@@ -83,7 +83,7 @@ class Database:
         except ValueError:
             return False
 
-    def construct_query(self, query, aliases, joins):
+    def construct_query1(self, query, aliases, joins):
         query_moz = parse(query)
         join_map = {}  # [ (12, 20): ['t.id', 'mc.movie_id'] , ..]
         for v in query_moz["where"]["and"]:
@@ -123,6 +123,62 @@ class Database:
             query = query.replace(replace, cond)
 
         return query
+
+    def construct_query(self, query, aliases, join_ordering):
+
+        print(join_ordering)
+        left, left_alias = self.recursive_construct(aliases, join_ordering[0], 0)
+        right, right_alias = self.recursive_construct(aliases, join_ordering[1], 1)
+
+        query = "SELECT ... FROM " + str(left_alias) + "," + str(right_alias) + " WHERE " + \
+                str(left) + " JOIN " + str(right) + " on .. = .."
+
+        return query
+
+    def recursive_construct(self, aliases, subtree, counter):
+
+        print(subtree)
+        if isinstance(subtree, str):
+            return subtree, subtree
+
+        l = isinstance(subtree[0], str)
+        r = isinstance(subtree[1], str)
+
+        if l and r:
+            print("None")
+            left = subtree[0]
+            left_alias = left
+            right = subtree[1]
+            right_alias = right
+
+
+
+        elif l:
+            print("Left")
+            left = subtree[0]
+            left_alias = left
+            right, right_alias = self.recursive_construct(aliases, subtree[1], counter+2)
+
+        elif r:
+            print("Right")
+            left, left_alias = self.recursive_construct(aliases, subtree[0], counter+2)
+            right = subtree[1]
+            right_alias = right
+
+        else:
+            print("Both")
+            left, left_alias = self.recursive_construct(aliases, subtree[0], counter+2)
+            right, right_alias = self.recursive_construct(aliases, subtree[1], counter+2)
+
+        new_alias = "J" + str(counter)
+        subquery = "( SELECT" + " * " + "FROM " + str(left_alias) + "," + str(right_alias) + " WHERE " + \
+                   str(left) + " JOIN " + str(right) \
+                   + " on " + "T" + "." + "<attr>" + "=" + "T" + "." + "<attr> " + str(new_alias) + " )"
+
+        print(subquery)
+
+        return subquery, new_alias
+
 
     def get_reward(self, query, phase):
         # get reward from specific episode(tuples of joins)

@@ -16,6 +16,8 @@ class StateVector:
                 self.tables.index(v["value"]),
                 v["value"],
             )  # {'alias' : (0,'table name')}
+
+        print(self.query_ast)
         self.tree_structure = self.extract_tree_structure()
         self.join_predicates = self.extract_join_predicates()
         self.selection_predicates = self.extract_selection_predicates()

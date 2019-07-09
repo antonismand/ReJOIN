@@ -22,7 +22,9 @@ class ReJoin(Environment):
         self.file_names = os.listdir(dataset)
         self.phase = phase
         self.memory_actions = []
-        self.tables_joined = []
+        # self.tables_joined = []
+
+        self.join_ordering = self.tables.copy()
 
         # filename = self.file_names[self.episode_curr]
         # file = open(dataset + "/" + filename, 'r')
@@ -62,6 +64,9 @@ class ReJoin(Environment):
         self.state = self.state_vector.vectorize
         self.memory_actions = []
         self.episode_curr += 1
+
+        self.join_ordering = self.tables.copy()
+
         # print(state.join_predicates)
         # print(state.selection_predicates)
         return self.state
@@ -71,7 +76,7 @@ class ReJoin(Environment):
         Executes action, observes next state(s) and reward.
 
         Args:
-            actions: Actions to execute.
+            action: Action to execute.
 
         Returns:
             Tuple of (next state, bool indicating terminal, reward)
@@ -90,6 +95,11 @@ class ReJoin(Environment):
         self._update_joins(action_pair)
         self._set_next_state(action_pair)
         self.memory_actions.append(action_pair)
+
+        # print(self.temp)
+
+        self.join_ordering[action_pair[0]] = [self.join_ordering[action_pair[0]], self.join_ordering[action_pair[1]]]
+        del self.join_ordering[action_pair[1]]
 
         if terminal:
             reward = self.get_reward()
@@ -144,12 +154,8 @@ class ReJoin(Environment):
         """Reward is given for the final state."""
 
         if self.is_final:
-            if self.phase == 1:
-                new_query = self.database.construct_query(
-                    self.query, self.state_vector.aliases, self.memory_actions
-                )
-                return 1 / self.database.get_reward(new_query, self.phase)
-            return 0.0
+            new_query = self.database.construct_query(self.query, self.state_vector.aliases, self.join_ordering)
+            return 1/self.database.get_reward(new_query, self.phase)
         else:
             return 0.0
 
