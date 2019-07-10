@@ -92,13 +92,21 @@ class ReJoin(Environment):
         # Get reward and process terminal & next state.
         terminal = self.is_terminal
 
-        self._update_joins(action_pair)
         self._set_next_state(action_pair)
         self.memory_actions.append(action_pair)
 
         # print(self.temp)
 
-        self.join_ordering[action_pair[0]] = [self.join_ordering[action_pair[0]], self.join_ordering[action_pair[1]]]
+        print(
+            "Join",
+            self.join_ordering[action_pair[0]],
+            "⟕",
+            self.join_ordering[action_pair[1]],
+        )
+        self.join_ordering[action_pair[0]] = [
+            self.join_ordering[action_pair[0]],
+            self.join_ordering[action_pair[1]],
+        ]
         del self.join_ordering[action_pair[1]]
 
         if terminal:
@@ -122,8 +130,12 @@ class ReJoin(Environment):
         """
 
         states = dict(shape=3)
-        states["tree_structure"] = dict(shape=(self.num_tables, self.num_tables), type="float")
-        states["join_predicates"] = dict(shape=(self.num_tables, self.num_tables), type="int")
+        states["tree_structure"] = dict(
+            shape=(self.num_tables, self.num_tables), type="float"
+        )
+        states["join_predicates"] = dict(
+            shape=(self.num_tables, self.num_tables), type="int"
+        )
         states["selection_predicates"] = dict(shape=(self.num_attrs,), type="int")
         return states
 
@@ -143,8 +155,9 @@ class ReJoin(Environment):
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
         # Discrete value {1, 2,.., n} where n = (num_relations*num_relations)-num_relations
-        return dict(type="int", num_actions=self.num_tables * self.num_tables)   # - self.num_tables ignore for now
-
+        return dict(
+            type="int", num_actions=self.num_tables * self.num_tables
+        )  # - self.num_tables ignore for now
 
     @property
     def is_terminal(self):
@@ -154,8 +167,10 @@ class ReJoin(Environment):
         """Reward is given for the final state."""
 
         if self.is_final:
-            new_query = self.database.construct_query(self.query, self.state_vector.aliases, self.join_ordering)
-            return 1/self.database.get_reward(new_query, self.phase)
+            new_query = self.database.construct_query(
+                self.query, self.state_vector.aliases, self.join_ordering
+            )
+            return 1 / self.database.get_reward(new_query, self.phase)
         else:
             return 0.0
 
@@ -182,30 +197,6 @@ class ReJoin(Environment):
         states.append(s)
         states.append([0] * len(self.num_tables))
         self.states["tree_structure"] = states
-
-    def _update_joins(self, action):
-        tree = self.states["tree_structure"]
-        join_predicates = self.states["join_predicates"]
-        s1 = tree[action[0]]
-        s2 = tree[action[1]]
-        tables_s1, tables_s2 = []
-        for k, t in enumerate(s1):
-            if t != 0:
-                tables_s1.append(k)
-        for k, t in enumerate(s2):
-            if t != 0:
-                tables_s2.append(k)
-
-        # [ 1/2  0  1/2  0] -> (0,2) A,C
-        # [ 0  1  0  1] -> (1,4) B,D
-
-        once = True
-        for t in tables_s1:
-            for t2 in tables_s2:
-                if join_predicates[t][t2] == 1 and once:
-                    self.tables_joined.append((t, t2))
-                    print("Join:", self.tables[t], "⟕", self.tables[t2])
-                    once = False
 
     def _join(self, s1, s2):
         # 0 1 0 0 0
