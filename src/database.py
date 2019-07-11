@@ -2,14 +2,20 @@ import psycopg2
 import database_env as creds
 
 from moz_sql_parser import parse
+import pprint
 
 
 class Database:
     def __init__(self):
         self.conn = self.connect()
-        self.tables, self.attributes = self.get_tables_attributes()
         self.counter = 0
         self.aiases = {}
+
+        self.tables_attributes = self.get_tables_attributes()
+        self.tables = list(self.tables_attributes.keys())
+        self.attributes = []
+        for k in self.tables_attributes:
+            self.attributes = self.attributes + [k + "." + v for v in self.tables_attributes[k]]
 
     def connect(self):
         try:
@@ -50,11 +56,11 @@ class Database:
             else:
                 tables_attributes[table] = [attribute]
 
-        tables = list(tables_attributes.keys())
-        attributes = []
-        for k in tables_attributes:
-            attributes = attributes + [k + "." + v for v in tables_attributes[k]]
-        return tables, attributes
+        return tables_attributes
+
+    def print_tables_attrs(self):
+        pp = pprint.PrettyPrinter(indent=2)
+        pp.pprint(self.tables_attributes)
 
     def close(self):
         if self.conn:

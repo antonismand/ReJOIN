@@ -70,7 +70,7 @@ def main():
     # print_config(args)
 
     logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)  # configurable!!!
+    logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
     # Connect to database

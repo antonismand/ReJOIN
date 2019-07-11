@@ -1,5 +1,6 @@
 from moz_sql_parser import parse
 import numpy as np
+import pprint
 
 
 class StateVector:
@@ -9,15 +10,18 @@ class StateVector:
         self.tables = tables
         self.attributes = attributes
         self.query_ast = parse(query)
-        self.aliases = {}
         self.join_num = 0
+
+        self.aliases = {}
         for v in self.query_ast["from"]:
             self.aliases[v["name"]] = (
                 self.tables.index(v["value"]),
                 v["value"],
             )  # {'alias' : (0,'table name')}
 
-        print(self.query_ast)
+        self.joined_attrs = {}
+        self.query_tables = set()
+
         self.tree_structure = self.extract_tree_structure()
         self.join_predicates = self.extract_join_predicates()
         self.selection_predicates = self.extract_selection_predicates()
@@ -27,11 +31,20 @@ class StateVector:
         results = []
         for v in self.query_ast["where"]["and"]:
             if (
-                "eq" in v
-                and isinstance(v["eq"][0], str)
-                and isinstance(v["eq"][1], str)
+                    "eq" in v
+                    and isinstance(v["eq"][0], str)
+                    and isinstance(v["eq"][1], str)
             ):
-                results.append((v["eq"][0].split(".")[0], v["eq"][1].split(".")[0]))
+                table_left = v["eq"][0].split(".")[0]
+                table_right = v["eq"][1].split(".")[0]
+                attr1 = v["eq"][0].split(".")[1]
+                attr2 = v["eq"][1].split(".")[1]
+
+                self.joined_attrs[(table_left, table_right)] = (attr1, attr2)
+                self.joined_attrs[(table_right, table_left)] = (attr2, attr1)
+                self.query_tables.update([table_left, table_right])
+
+                results.append((table_left, table_right))
 
         tables_num = len(self.tables)
         graph = [[0 for x in range(tables_num)] for y in range(tables_num)]
@@ -39,6 +52,7 @@ class StateVector:
         for t1, t2 in results:
             graph[self.aliases[t1][0]][self.aliases[t1][0]] = 1
             graph[self.aliases[t2][0]][self.aliases[t2][0]] = 1
+
         return graph
 
     def extract_join_predicates(self):
@@ -100,3 +114,14 @@ class StateVector:
         print(np.array(self.selection_predicates))
         print(np.array(self.selection_predicates).shape)
 
+    def print_joined_attrs(self):
+        pp = pprint.PrettyPrinter(indent=2)
+        pp.pprint(self.joined_attrs)
+
+    def print_query_tables(self):
+        pp = pprint.PrettyPrinter(indent=2)
+        pp.pprint(self.query_tables)
+
+    def print_query(self):
+        pp = pprint.PrettyPrinter(indent=2)
+        pp.pprint(self.query_ast)
