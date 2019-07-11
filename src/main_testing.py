@@ -1,11 +1,13 @@
 from database import Database
 from state import StateVector
+from moz_sql_parser import parse
 import pprint
 
 """
 A "main" created for testing purposes
 """
 
+# [[ci,akt], an]
 query = "SELECT * FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
         "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
 
@@ -47,9 +49,9 @@ action_pairs = [[2, 1], [0, 1]]     # Specify a deep left join ordering
 
 print("\n\nSpecify a Join Ordering:")
 join_ordering = db.tables.copy()
-# tmp = zip(range(len(db.tables)), join_ordering)
-# for i in tmp:
-#     print(i)
+tmp = zip(range(len(db.tables)), join_ordering)
+for i in tmp:
+    print(i)
 final_ordering = []
 
 for action_pair in action_pairs:
@@ -79,6 +81,10 @@ print("Final Join Ordering with Aliases: ", final_ordering)
 print("\n\n\n\n------------------------\nConstructing the query...\n")
 constructed_query = db.construct_query(query, final_ordering, db.tables_attributes, state_vector.joined_attrs,
                                        state_vector.alias_to_tables, state_vector.aliases)
+
+constructed_query_ast = parse(constructed_query)
+
+# pp.pprint(constructed_query_ast)
 pp.pprint(constructed_query)
 print("------------------------------------------\n\n")
 

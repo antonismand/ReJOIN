@@ -1,5 +1,4 @@
 import database_env as creds
-from moz_sql_parser import parse
 import psycopg2
 import pprint
 
@@ -93,43 +92,43 @@ class Database:
             return False
 
     def construct_query1(self, query, aliases, joins):
-        query_moz = parse(query)
-        join_map = {}  # [ (12, 20): ['t.id', 'mc.movie_id'] , ..]
-        for v in query_moz["where"]["and"]:
-            print(v)
-            if (
-                "eq" in v
-                and isinstance(v["eq"][0], str)
-                and isinstance(v["eq"][1], str)
-            ):
-                # join_map.append((v['eq'][0].split('.')[0], v['eq'][1].split('.')[0]))
-                alias1 = v["eq"][0].split(".")[0]
-                alias2 = v["eq"][1].split(".")[0]
-                t1 = aliases[alias1][0]
-                t2 = aliases[alias2][0]
-                # print("alias:", alias1, "=", alias2, " Tables:", t1, "=", t2)
-                join_map[(min(t1, t2), max(t1, t2))] = v["eq"]
-
-        n = 0
-        for v in query_moz["where"]["and"]:
-            if (
-                "eq" in v
-                and isinstance(v["eq"][0], str)
-                and isinstance(v["eq"][1], str)
-            ):
-                # query_moz["where"]["and"][k]['eq'] = join_map[joins[n]]
-                replace = v["eq"][0] + " = " + v["eq"][1]
-                joins[n]
-                query = query.replace(
-                    replace, "|" + "-JOIN-".join(str(i) for i in joins[n]) + "|"
-                )
-                n += 1
-        for j in joins:
-            replace = "|" + str(j[0]) + "-JOIN-" + str(j[1]) + "|"
-            pred1 = join_map[j][0]
-            pred2 = join_map[j][1]
-            cond = pred1 + " = " + pred2
-            query = query.replace(replace, cond)
+        # query_moz = parse(query)
+        # join_map = {}  # [ (12, 20): ['t.id', 'mc.movie_id'] , ..]
+        # for v in query_moz["where"]["and"]:
+        #     print(v)
+        #     if (
+        #         "eq" in v
+        #         and isinstance(v["eq"][0], str)
+        #         and isinstance(v["eq"][1], str)
+        #     ):
+        #         # join_map.append((v['eq'][0].split('.')[0], v['eq'][1].split('.')[0]))
+        #         alias1 = v["eq"][0].split(".")[0]
+        #         alias2 = v["eq"][1].split(".")[0]
+        #         t1 = aliases[alias1][0]
+        #         t2 = aliases[alias2][0]
+        #         # print("alias:", alias1, "=", alias2, " Tables:", t1, "=", t2)
+        #         join_map[(min(t1, t2), max(t1, t2))] = v["eq"]
+        #
+        # n = 0
+        # for v in query_moz["where"]["and"]:
+        #     if (
+        #         "eq" in v
+        #         and isinstance(v["eq"][0], str)
+        #         and isinstance(v["eq"][1], str)
+        #     ):
+        #         # query_moz["where"]["and"][k]['eq'] = join_map[joins[n]]
+        #         replace = v["eq"][0] + " = " + v["eq"][1]
+        #         joins[n]
+        #         query = query.replace(
+        #             replace, "|" + "-JOIN-".join(str(i) for i in joins[n]) + "|"
+        #         )
+        #         n += 1
+        # for j in joins:
+        #     replace = "|" + str(j[0]) + "-JOIN-" + str(j[1]) + "|"
+        #     pred1 = join_map[j][0]
+        #     pred2 = join_map[j][1]
+        #     cond = pred1 + " = " + pred2
+        #     query = query.replace(replace, cond)
 
         return query
 
@@ -140,7 +139,7 @@ class Database:
         print(join_ordering)
         subq, alias = self.recursive_construct(join_ordering, attrs, joined_attrs, alias_to_tables, aliases)
 
-        query = "SELECT ... FROM " + subq + " WHERE "
+        query = "SELECT * FROM " + subq     # + " WHERE "
 
         return query
 
@@ -165,6 +164,11 @@ class Database:
         print("\n\nJoined Attrs: ")
         self.print_dict(joined_attrs)
         print("Attrs: " + attr1 + " , " + attr2)
+
+        if left == left_alias:
+            left = aliases[left][1] + " AS " + left
+        if right == right_alias:
+            right = aliases[right][1] + " AS " + right
 
         clause = self.select_clause(alias_to_tables, left_alias, right_alias, attrs, aliases)
 
@@ -191,7 +195,7 @@ class Database:
         print("\n\nUpdated Joined Attrs: ")
         self.print_dict(joined_attrs)
 
-        print(subquery)
+        # print(subquery)
 
         return subquery, new_alias
 
@@ -227,8 +231,8 @@ class Database:
         # tables_left = alias_to_tables[left_alias] ; tables_right = alias_to_tables[right_alias]
         # print(tables_left); print(tables_right)
 
-        self.recursive_select_clause(clause, left_alias + "_", alias_to_tables, left_alias, attrs, left_alias, aliases)
-        self.recursive_select_clause(clause, right_alias + "_", alias_to_tables, right_alias, attrs, right_alias, aliases)
+        self.recursive_select_clause(clause, "", alias_to_tables, left_alias, attrs, left_alias, aliases)
+        self.recursive_select_clause(clause, "", alias_to_tables, right_alias, attrs, right_alias, aliases)
 
         select_clause = ""
         for i in range(len(clause)-1):
@@ -249,7 +253,8 @@ class Database:
         else:
             attributes = attrs[aliases[rels[0]][1]]
             for attr in attributes:
-                clause.append(base_alias + "." + attr + " AS " + path + attr)
+                tmp = path + attr
+                clause.append(base_alias + "." + tmp + " AS " + base_alias + "_" + tmp)
 
     def get_reward(self, query, phase):
         # get reward from specific episode(tuples of joins)
