@@ -6,34 +6,77 @@ import sys
 
 """
 A "main" created for testing purposes
-
 """
-
-# Things needed for query construction:
-
-# query = "SELECT * " \
-#         "FROM ((cast_info " \
-#         "JOIN aka_title on cast_info.movie_id=aka_title.movie_id) " \
-#         "JOIN aka_name on cast_info.person_id=aka_name.person_id) " \
-#         "LIMIT 5;"
-
-pp = pprint.PrettyPrinter(indent=2)
 
 query = "SELECT * FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
         "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
 
+
+pp = pprint.PrettyPrinter(indent=2)
+
 db = Database()
 state_vector = StateVector(query, db.tables, db.attributes)
 
+# -------------- Printing Messages Monitoring States -------------- #
+print("\n\n------------------------\nParsed Query:\n")
 state_vector.print_query()
-print("\n\nTables:\n")
+print("------------------------------------------\n\n")
+print("------------------------\nDatabase Tables:\n")
 pp.pprint(db.tables)
-print("\n\nTables & Attributes:\n")
+print("------------------------------------------\n\n")
+print("------------------------\nTables & Attributes:\n")
 db.print_tables_attrs()
-print("\n\nQuery Joined Attrs:\n")
+print("------------------------------------------\n\n")
+print("------------------------\nQuery Joined Attrs:\n")
 state_vector.print_joined_attrs()
-print("\n\nQuery Tables:\n")
+print("------------------------------------------\n\n")
+print("------------------------\nQuery Tables:\n")
 state_vector.print_query_tables()
+print("------------------------------------------\n\n")
+print("------------------------\nTable Aliases:\n")
+state_vector.print_aliases()
+print("------------------------------------------\n\n")
+print("------------------------\nOriginal Names to Aliases:\n")
+state_vector.print_original_names_to_aliases()
+print("------------------------------------------\n\n")
+print("------------------------\nAlias-To-Tables:\n")
+state_vector.print_alias_to_tables()
+print("------------------------------------------\n\n")
+# ----------------------------------------------------------------- #
+
+# Actions followed by the agent
+action_pairs = [[2, 1], [0, 1]]     # Specify a deep left join ordering
+
+print("\n\nSpecify a Join Ordering:")
+join_ordering = db.tables.copy()
+# tmp = zip(range(len(db.tables)), join_ordering)
+# for i in tmp:
+#     print(i)
+final_ordering = []
+
+for action_pair in action_pairs:
+    print("\nJoin:", join_ordering[action_pair[0]], "⟕", join_ordering[action_pair[1]])
+
+    join_ordering[action_pair[0]] = [
+        join_ordering[action_pair[0]],
+        join_ordering[action_pair[1]],
+    ]
+    del join_ordering[action_pair[1]]
+
+    tmp = zip(range(len(db.tables)), join_ordering)
+    for i in tmp:
+        print(i)
+
+    final_ordering = join_ordering[action_pair[0]]    # min(action_pair[0], action_pair[1])]
+
+print("\n\nFinal Join Ordering: ", final_ordering)
+state_vector.convert_join_ordering_to_alias(final_ordering)
+print("\n\nFinal Join Ordering with Aliases: ", final_ordering)
+
+
+
+
+
 
 
 
@@ -41,10 +84,10 @@ state_vector.print_query_tables()
 
 
 # # Names of the tables that are ***contained*** in the query
+
 # tables = ["A", "B", "C", "D"]
 #
-# # Query-Tables and their attributes - this can be in main since it
-# # does not change per query (all database tables)
+# # Query-Tables and their attributes
 #
 # attrs = {'A': ["id", "a1", "a2"],
 #          'B': ["id", "id2", "a2"],

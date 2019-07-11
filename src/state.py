@@ -19,12 +19,21 @@ class StateVector:
                 v["value"],
             )  # {'alias' : (0,'table name')}
 
+        self.original_names_to_aliases = {}
+        for n in self.aliases:
+            self.original_names_to_aliases[self.aliases[n][1]] = n
+
         self.joined_attrs = {}
         self.query_tables = set()
+        self.alias_to_tables = {}
+        for alias in self.aliases:
+            self.alias_to_tables[alias] = [alias]
 
         self.tree_structure = self.extract_tree_structure()
         self.join_predicates = self.extract_join_predicates()
         self.selection_predicates = self.extract_selection_predicates()
+
+        self.pp = pprint.PrettyPrinter(indent=2)
 
     def extract_tree_structure(self):
         # Initial State is a diagonal rxr matrix
@@ -103,6 +112,13 @@ class StateVector:
         states["selection_predicates"] = self.selection_predicates
         return states
 
+    def convert_join_ordering_to_alias(self, join_ordering):
+        for i in range(2):
+            if isinstance(join_ordering[i], str):
+                join_ordering[i] = self.original_names_to_aliases[join_ordering[i]]
+            else:
+                self.convert_join_ordering_to_alias(join_ordering[i])
+
     def print_state(self):             # Print for debugging
         print("\nTree-Structure:\n")
         print(np.array(self.tree_structure))
@@ -115,13 +131,19 @@ class StateVector:
         print(np.array(self.selection_predicates).shape)
 
     def print_joined_attrs(self):
-        pp = pprint.PrettyPrinter(indent=2)
-        pp.pprint(self.joined_attrs)
+        self.pp.pprint(self.joined_attrs)
 
     def print_query_tables(self):
-        pp = pprint.PrettyPrinter(indent=2)
-        pp.pprint(self.query_tables)
+        self.pp.pprint(self.query_tables)
 
     def print_query(self):
-        pp = pprint.PrettyPrinter(indent=2)
-        pp.pprint(self.query_ast)
+        self.pp.pprint(self.query_ast)
+
+    def print_aliases(self):
+        self.pp.pprint(self.aliases)
+
+    def print_alias_to_tables(self):
+        self.pp.pprint(self.alias_to_tables)
+
+    def print_original_names_to_aliases(self):
+        self.pp.pprint(self.original_names_to_aliases)
