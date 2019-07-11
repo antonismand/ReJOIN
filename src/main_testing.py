@@ -1,6 +1,6 @@
 import os
-from src.state import StateVector
-from src.database import Database
+# from src.state import StateVector
+from database import Database
 import sys
 
 
@@ -9,12 +9,41 @@ A "main" created for testing purposes
 
 """
 
-tables = ["A", "B", "C", "D", "E"]
+# Things needed for query construction:
 
-action_pairs = [[0, 1], [1, 2], [0, 1], [0, 1]]
+# Names of the tables that are ***contained*** in the query
+tables = ["A", "B", "C", "D"]
+
+# Query-Tables and their attributes - this can be in main since it
+# does not change per query (all database tables)
+
+attrs = {'A': ["id", "a1", "a2"],
+         'B': ["id", "id2", "a2"],
+         'C': ["id", "id2", "a2"],
+         'D': ["id", "a1", "a2"]}
+
+# Info about which tables get joined with which attributes (derived by the parsed_query)
+joined_attrs = {
+    ('A', 'B'): ('id', 'id'), ('B', 'A'): ('id', 'id'),
+    ('C', 'B'): ('id', 'id2'), ('B', 'C'): ('id2', 'id'),
+    ('C', 'D'): ('id2', 'id'), ('D', 'C'): ('id', 'id2')
+}
+
+# A map of aliases and the relations they refer to
+alias_to_tables = {
+    'A': ['A'],
+    'B': ['B'],
+    'C': ['C'],
+    'D': ['D']
+    # e.g. 'J1': {"A", "B"} etc
+}
+
+# Actions followed by the agent
+action_pairs = [[0, 1], [0, 1], [0, 1]]
+
 join_ordering = tables
 for action_pair in action_pairs:
-    print("Join:", join_ordering[action_pair[0]], "⟕", join_ordering[action_pair[1]])
+    # print("Join:", join_ordering[action_pair[0]], "⟕", join_ordering[action_pair[1]])
     join_ordering[action_pair[0]] = [
         join_ordering[action_pair[0]],
         join_ordering[action_pair[1]],
@@ -25,7 +54,7 @@ for action_pair in action_pairs:
 
 db = Database()
 
-query = db.construct_query([], [], join_ordering[0])
+query = db.construct_query([], join_ordering[0], attrs, joined_attrs, alias_to_tables)
 
 print("\n\n")
 print(query)
