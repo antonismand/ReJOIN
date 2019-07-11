@@ -6,12 +6,15 @@ import pprint
 class StateVector:
     def __init__(self, query, tables, attributes):
 
+        self.pp = pprint.PrettyPrinter(indent=2)
+
         self.query = query
         self.tables = tables
         self.attributes = attributes
         self.query_ast = parse(query)
         self.join_num = 0
 
+        # Maps from original-names to aliases and vice-versa
         self.aliases = {}
         for v in self.query_ast["from"]:
             self.aliases[v["name"]] = (
@@ -23,17 +26,17 @@ class StateVector:
         for n in self.aliases:
             self.original_names_to_aliases[self.aliases[n][1]] = n
 
+        # Help structures for query reconstruction
         self.joined_attrs = {}
         self.query_tables = set()
         self.alias_to_tables = {}
         for alias in self.aliases:
             self.alias_to_tables[alias] = [alias]
 
+        # State Representation (to be fed in the NN)
         self.tree_structure = self.extract_tree_structure()
         self.join_predicates = self.extract_join_predicates()
         self.selection_predicates = self.extract_selection_predicates()
-
-        self.pp = pprint.PrettyPrinter(indent=2)
 
     def extract_tree_structure(self):
         # Initial State is a diagonal rxr matrix

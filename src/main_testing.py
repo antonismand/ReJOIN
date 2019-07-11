@@ -1,8 +1,6 @@
 from database import Database
 from state import StateVector
 import pprint
-import os
-import sys
 
 """
 A "main" created for testing purposes
@@ -67,16 +65,22 @@ for action_pair in action_pairs:
     for i in tmp:
         print(i)
 
-    final_ordering = join_ordering[action_pair[0]]    # min(action_pair[0], action_pair[1])]
+    final_ordering = join_ordering[action_pair[0]]    # Is it (min(action_pair[0], action_pair[1])]) ?
 
 print("\n\nFinal Join Ordering: ", final_ordering)
 state_vector.convert_join_ordering_to_alias(final_ordering)
-print("\n\nFinal Join Ordering with Aliases: ", final_ordering)
+print("Final Join Ordering with Aliases: ", final_ordering)
+
+# Test Query Reconstruction
+# - feed a join-ordering and expect as return a fully constructed sql-query
+# - containing those explicit join-orderings
 
 
-
-
-
+print("\n\n\n\n------------------------\nConstructing the query...\n")
+constructed_query = db.construct_query(query, final_ordering, db.tables_attributes, state_vector.joined_attrs,
+                                       state_vector.alias_to_tables, state_vector.aliases)
+pp.pprint(constructed_query)
+print("------------------------------------------\n\n")
 
 
 

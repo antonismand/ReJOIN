@@ -1,7 +1,6 @@
-import psycopg2
 import database_env as creds
-
 from moz_sql_parser import parse
+import psycopg2
 import pprint
 
 
@@ -16,6 +15,8 @@ class Database:
         self.attributes = []
         for k in self.tables_attributes:
             self.attributes = self.attributes + [k + "." + v for v in self.tables_attributes[k]]
+
+        self.pp = pprint.PrettyPrinter(indent=2)
 
     def connect(self):
         try:
@@ -132,27 +133,24 @@ class Database:
 
         return query
 
-    def construct_query(self, query, join_ordering, attrs, joined_attrs, alias_to_tables):
+    def construct_query(self, query, join_ordering, attrs, joined_attrs, alias_to_tables, aliases):
 
-        # Mapping relations/subtrees to their aliases
-        # E.g. ['A']  -> "J1"
-        #      ['B']  -> "J1"
-        #      ['J1'] -> "J2"
+        # ToDo: Antonis do sth with "query" in order to extram the external query info
 
         print(join_ordering)
-        subq, alias = self.recursive_construct(join_ordering, attrs, joined_attrs, alias_to_tables)
+        subq, alias = self.recursive_construct(join_ordering, attrs, joined_attrs, alias_to_tables, aliases)
 
         query = "SELECT ... FROM " + subq + " WHERE "
 
         return query
 
-    def recursive_construct(self, subtree, attrs, joined_attrs, alias_to_tables):
+    def recursive_construct(self, subtree, attrs, joined_attrs, alias_to_tables, aliases):
 
         if isinstance(subtree, str):
             return subtree, subtree
 
-        left, left_alias = self.recursive_construct(subtree[0], attrs, joined_attrs, alias_to_tables)
-        right, right_alias = self.recursive_construct(subtree[1], attrs, joined_attrs, alias_to_tables)
+        left, left_alias = self.recursive_construct(subtree[0], attrs, joined_attrs, alias_to_tables, aliases)
+        right, right_alias = self.recursive_construct(subtree[1], attrs, joined_attrs, alias_to_tables, aliases)
 
         new_alias = "J" + str(self.counter)
         self.counter += 1
@@ -168,7 +166,7 @@ class Database:
         self.print_dict(joined_attrs)
         print("Attrs: " + attr1 + " , " + attr2)
 
-        clause = self.select_clause(alias_to_tables, left_alias, right_alias, attrs)
+        clause = self.select_clause(alias_to_tables, left_alias, right_alias, attrs, aliases)
 
         subquery = (
             "( SELECT "
@@ -221,18 +219,16 @@ class Database:
                 del joined_attrs[(t1, t2)]
                 joined_attrs[(rel1, rel2)] = (attr1, attr2)
 
-    def select_clause(self, alias_to_tables, left_alias, right_alias, attrs):
+    def select_clause(self, alias_to_tables, left_alias, right_alias, attrs, aliases):
 
         # print("\n\nSelect Clause:\n")
 
         clause = []
-        tables_left = alias_to_tables[left_alias]
-        tables_right = alias_to_tables[right_alias]
+        # tables_left = alias_to_tables[left_alias] ; tables_right = alias_to_tables[right_alias]
+        # print(tables_left); print(tables_right)
 
-        # print(tables_left)
-        # print(tables_right)
-        self.recursive_select_clause(clause, left_alias + "_", alias_to_tables, left_alias, attrs, left_alias)
-        self.recursive_select_clause(clause, right_alias + "_", alias_to_tables, right_alias, attrs, right_alias)
+        self.recursive_select_clause(clause, left_alias + "_", alias_to_tables, left_alias, attrs, left_alias, aliases)
+        self.recursive_select_clause(clause, right_alias + "_", alias_to_tables, right_alias, attrs, right_alias, aliases)
 
         select_clause = ""
         for i in range(len(clause)-1):
@@ -242,17 +238,16 @@ class Database:
 
         return select_clause
 
-    def recursive_select_clause(self, clause, path, alias_to_tables, alias, attrs, base_alias):
+    def recursive_select_clause(self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases):
 
         # print(alias)
-
         rels = alias_to_tables[alias]
         if len(rels) > 1:
             for rel in rels:
                 path1 = path + rel + "_"
-                self.recursive_select_clause(clause, path1, alias_to_tables, rel, attrs, base_alias)
+                self.recursive_select_clause(clause, path1, alias_to_tables, rel, attrs, base_alias, aliases)
         else:
-            attributes = attrs[rels[0]]
+            attributes = attrs[aliases[rels[0]][1]]
             for attr in attributes:
                 clause.append(base_alias + "." + attr + " AS " + path + attr)
 
