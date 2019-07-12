@@ -8,9 +8,29 @@ A "main" created for testing purposes
 """
 
 # [[ci,akt], an]
-query = "SELECT * FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
+query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
         "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
 
+# query = '''
+# SELECT MIN(mc.note) AS production_note,
+#        MIN(t.title) AS movie_title,
+#        MIN(t.production_year) AS movie_year
+# FROM company_type AS ct,
+#      info_type AS it,
+#      movie_companies AS mc,
+#      movie_info_idx AS mi_idx,
+#      title AS t
+# WHERE ct.kind = 'production companies'
+#   AND it.info = 'top 250 rank'
+#   AND mc.note NOT LIKE '%(as Metro-Goldwyn-Mayer Pictures)%'
+#   AND (mc.note LIKE '%(co-production)%'
+#        OR mc.note LIKE '%(presents)%')
+#   AND ct.id = mc.company_type_id
+#   AND t.id = mc.movie_id
+#   AND t.id = mi_idx.movie_id
+#   AND mc.movie_id = mi_idx.movie_id
+#   AND it.id = mi_idx.info_type_id;
+# '''
 
 pp = pprint.PrettyPrinter(indent=2)
 
@@ -79,10 +99,10 @@ print("Final Join Ordering with Aliases: ", final_ordering)
 
 
 print("\n\n\n\n------------------------\nConstructing the query...\n")
-constructed_query = db.construct_query(query, final_ordering, db.tables_attributes, state_vector.joined_attrs,
+constructed_query = db.construct_query(state_vector.query_ast, final_ordering, db.tables_attributes, state_vector.joined_attrs,
                                        state_vector.alias_to_tables, state_vector.aliases)
 
-constructed_query_ast = parse(constructed_query)
+# constructed_query_ast = parse(constructed_query)
 
 # pp.pprint(constructed_query_ast)
 pp.pprint(constructed_query)

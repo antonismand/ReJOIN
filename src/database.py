@@ -1,6 +1,7 @@
 import database_env as creds
 import psycopg2
 import pprint
+import database_utils as utils
 
 
 class Database:
@@ -91,57 +92,25 @@ class Database:
         except ValueError:
             return False
 
-    def construct_query1(self, query, aliases, joins):
-        # query_moz = parse(query)
-        # join_map = {}  # [ (12, 20): ['t.id', 'mc.movie_id'] , ..]
-        # for v in query_moz["where"]["and"]:
-        #     print(v)
-        #     if (
-        #         "eq" in v
-        #         and isinstance(v["eq"][0], str)
-        #         and isinstance(v["eq"][1], str)
-        #     ):
-        #         # join_map.append((v['eq'][0].split('.')[0], v['eq'][1].split('.')[0]))
-        #         alias1 = v["eq"][0].split(".")[0]
-        #         alias2 = v["eq"][1].split(".")[0]
-        #         t1 = aliases[alias1][0]
-        #         t2 = aliases[alias2][0]
-        #         # print("alias:", alias1, "=", alias2, " Tables:", t1, "=", t2)
-        #         join_map[(min(t1, t2), max(t1, t2))] = v["eq"]
-        #
-        # n = 0
-        # for v in query_moz["where"]["and"]:
-        #     if (
-        #         "eq" in v
-        #         and isinstance(v["eq"][0], str)
-        #         and isinstance(v["eq"][1], str)
-        #     ):
-        #         # query_moz["where"]["and"][k]['eq'] = join_map[joins[n]]
-        #         replace = v["eq"][0] + " = " + v["eq"][1]
-        #         joins[n]
-        #         query = query.replace(
-        #             replace, "|" + "-JOIN-".join(str(i) for i in joins[n]) + "|"
-        #         )
-        #         n += 1
-        # for j in joins:
-        #     replace = "|" + str(j[0]) + "-JOIN-" + str(j[1]) + "|"
-        #     pred1 = join_map[j][0]
-        #     pred2 = join_map[j][1]
-        #     cond = pred1 + " = " + pred2
-        #     query = query.replace(replace, cond)
+    def construct_query(self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases):
 
-        return query
-
-    def construct_query(self, query, join_ordering, attrs, joined_attrs, alias_to_tables, aliases):
-
-        # ToDo: Antonis do sth with "query" in order to extram the external query info
-
-        print(join_ordering)
+        # print(join_ordering)
         subq, alias = self.recursive_construct(join_ordering, attrs, joined_attrs, alias_to_tables, aliases)
 
-        query = "SELECT * FROM " + subq     # + " WHERE "
+        select_clause = utils.get_select_clause(query_ast)
+        where_clause = utils.get_where_clause(query_ast)
 
+
+        query = (
+            select_clause
+            + "\nFROM " + subq
+            + where_clause
+            )
+
+        print(query)
         return query
+
+
 
     def recursive_construct(self, subtree, attrs, joined_attrs, alias_to_tables, aliases):
 
@@ -155,8 +124,8 @@ class Database:
         self.counter += 1
 
         print("\n\nAliases to tables: ")
-        self.print_dict(alias_to_tables)
         alias_to_tables[new_alias] = [left_alias, right_alias]
+        self.print_dict(alias_to_tables)
 
         print("\n\nJoining subtrees: " + left_alias + " ⟕ " + right_alias)
 
