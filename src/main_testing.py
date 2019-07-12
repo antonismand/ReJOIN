@@ -1,5 +1,5 @@
-from database import Database
-from state import StateVector
+from src.database import Database
+from src.state import StateVector
 from moz_sql_parser import parse
 import pprint
 
@@ -103,14 +103,10 @@ constructed_query = db.construct_query(state_vector.query_ast, final_ordering, d
                                        state_vector.alias_to_tables, state_vector.aliases)
 
 # constructed_query_ast = parse(constructed_query)
-
 # pp.pprint(constructed_query_ast)
+
 pp.pprint(constructed_query)
 print("------------------------------------------\n\n")
-
-
-
-
 
 
 # # Names of the tables that are ***contained*** in the query

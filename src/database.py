@@ -1,7 +1,7 @@
-import database_env as creds
+import src.database_env as creds
 import psycopg2
 import pprint
-import database_utils as utils
+import src.database_utils as utils
 
 
 class Database:
@@ -94,33 +94,38 @@ class Database:
 
     def construct_query(self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases):
 
+        tables_to_alias = {}
+
         # print(join_ordering)
-        subq, alias = self.recursive_construct(join_ordering, attrs, joined_attrs, alias_to_tables, aliases)
+        subq, alias = self.recursive_construct(join_ordering, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases)
 
-        select_clause = utils.get_select_clause(query_ast)
-        where_clause = utils.get_where_clause(query_ast)
+        select_clause = utils.get_select_clause(query_ast, tables_to_alias, alias)
+        where_clause = utils.get_where_clause(query_ast, tables_to_alias, alias)
 
+        print("\n\nTables to aliases: ")
+        self.print_dict(tables_to_alias)
 
         query = (
             select_clause
-            + "\nFROM " + subq
+            + " FROM " + subq
             + where_clause
             )
 
-        print(query)
+        # print(query)
+        self.counter = 0
         return query
 
-
-
-    def recursive_construct(self, subtree, attrs, joined_attrs, alias_to_tables, aliases):
+    def recursive_construct(self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases):
 
         if isinstance(subtree, str):
             return subtree, subtree
 
-        left, left_alias = self.recursive_construct(subtree[0], attrs, joined_attrs, alias_to_tables, aliases)
-        right, right_alias = self.recursive_construct(subtree[1], attrs, joined_attrs, alias_to_tables, aliases)
+        left, left_alias = self.recursive_construct(subtree[0], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases)
+        right, right_alias = self.recursive_construct(subtree[1], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases)
 
         new_alias = "J" + str(self.counter)
+        tables_to_alias[left_alias] = new_alias
+        tables_to_alias[right_alias] = new_alias
         self.counter += 1
 
         print("\n\nAliases to tables: ")
