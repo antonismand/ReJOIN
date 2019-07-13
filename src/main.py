@@ -66,8 +66,9 @@ def get_times():
 
 
 def main():
-    # print_config(args)
+
     args = make_args_parser()
+    # print_config(args)
 
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
@@ -98,24 +99,25 @@ def main():
         [
             dict(type='input', names=['tree_structure']),
             dict(type='dense', size=32, activation='relu'),
-            # dict(type='dense', size=21, activation='relu'),
-            dict(type='output', name='tree_structure_net'),
+            dict(type='dense', size=128, activation='relu'),
+            dict(type='output', name='tree_structure_emb'),
         ],
         [
             dict(type='input', names=['join_predicates']),
-            dict(type='dense', size=32, activation='relu'),
-            # dict(type='dense', size=21, activation='relu'),
-            dict(type='output', name='join_predicates_net'),
+            dict(type='dense', size=128, activation='relu'),
+            dict(type='dense', size=128, activation='relu'),
+            dict(type='output', name='join_predicates_emb'),
         ],
         [
             dict(type='input', names=['selection_predicates']),
-            dict(type='dense', size=32, activation='relu'),
-            dict(type='output', name='selection_predicates_net'),
+            dict(type='dense', size=128, activation='relu'),
+            dict(type='dense', size=128, activation='relu'),
+            dict(type='output', name='selection_predicates_emb'),
         ],
         [
-            dict(type='input', names=['tree_structure_net', 'join_predicates_net', 'selection_predicates_net']),
-            dict(type='dense', size=32, activation='relu'),
-            # dict(type='dense', size=20, activation='relu'),
+            dict(type='input', names=['tree_structure_emb', 'join_predicates_emb', 'selection_predicates_emb']),
+            dict(type='dense', size=128, activation='relu'),
+            dict(type='dense', size=128, activation='relu'),
             # dict(type='dueling', size=3, activation='none'),
             dict(type='output', name='prediction'),
         ]
@@ -132,7 +134,6 @@ def main():
     )
 
     runner = Runner(agent=agent, environment=environment)
-    sys.exit(0)
 
     # ~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~ #
 
@@ -153,6 +154,7 @@ def main():
     # Start Training
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
 
+    sys.exit(0)
 
     runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))

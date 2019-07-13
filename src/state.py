@@ -110,9 +110,16 @@ class StateVector:
 
     def vectorize(self):
         states = dict()
-        states["tree_structure"] = self.tree_structure
-        states["join_predicates"] = self.join_predicates
-        states["selection_predicates"] = self.selection_predicates
+        print(np.array(self.tree_structure).flatten())
+        print(np.array(self.tree_structure).flatten().shape)
+        print(np.array(self.tree_structure).flatten())
+        print(np.array(self.tree_structure).flatten().shape)
+        print(np.array(self.selection_predicates).flatten().shape)
+
+        states["tree_structure"] = np.array(self.tree_structure).flatten()
+        states["join_predicates"] = np.array(self.join_predicates).flatten()
+        states["selection_predicates"] = np.array(self.selection_predicates).flatten()
+
         return states
 
     def convert_join_ordering_to_alias(self, join_ordering):
