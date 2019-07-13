@@ -22,8 +22,13 @@ class ReJoin(Environment):
         self.file_names = os.listdir(dataset)
         self.phase = phase
         self.memory_actions = []
-        # self.tables_joined = []
 
+        self.query = None
+        self.state_vector = None
+        self.join_num = None
+        self.state = None
+
+        # self.tables_joined = []
         self.join_ordering = self.tables.copy()
 
         # filename = self.file_names[self.episode_curr]
@@ -33,7 +38,7 @@ class ReJoin(Environment):
         # self.state, self.join_num = self.state_vector.vectorize
 
     def __str__(self):
-        return ""
+        return "REJOIN"
 
     def close(self):
         print("Close")
@@ -46,6 +51,8 @@ class ReJoin(Environment):
             seed (int): The seed to use for initializing the pseudo-random number generator (default=epoch time in sec).
         Returns: The actual seed (int) used OR None if Environment did not override this method (no seeding supported).
         """
+        print("\n\nSEED\n\n")
+
         return np.random.RandomState(seed)
 
     def reset(self):
@@ -55,13 +62,15 @@ class ReJoin(Environment):
             initial state of reset environment.
         """
 
+        print("\n\nRESET\n\n")
         # Create a new initial state
-        filename = self.file_names[self.episode_curr]
+        # filename = self.file_names[self.episode_curr]
+        filename = self.file_names[0]
         file = open(self.dataset + "/" + filename, "r")
         self.query = file.read()
         self.state_vector = StateVector(self.query, self.tables, self.attributes)
         self.join_num = self.state_vector.join_num
-        self.state = self.state_vector.vectorize
+        self.state = self.state_vector.vectorize()
         self.memory_actions = []
         self.episode_curr += 1
 
@@ -129,14 +138,11 @@ class ReJoin(Environment):
                 - shape: integer, or list/tuple of integers (required).
         """
 
-        states = dict(shape=3)
-        states["tree_structure"] = dict(
-            shape=(self.num_tables, self.num_tables), type="float"
-        )
-        states["join_predicates"] = dict(
-            shape=(self.num_tables, self.num_tables), type="int"
-        )
-        states["selection_predicates"] = dict(shape=(self.num_attrs,), type="int")
+        states = dict()
+        states["tree_structure"] = dict(shape=(self.num_tables*self.num_tables), type="float")
+        states["join_predicates"] = dict(shape=(self.num_tables*self.num_tables), type="float")
+        states["selection_predicates"] = dict(shape=self.num_attrs, type="float")
+        print(states)
         return states
 
     @property
@@ -167,9 +173,7 @@ class ReJoin(Environment):
         """Reward is given for the final state."""
 
         if self.is_final:
-            new_query = self.database.construct_query(
-                self.query, self.state_vector.aliases, self.join_ordering
-            )
+            new_query = self.database.construct_query(self.query, self.state_vector.aliases, self.join_ordering)
             return 1 / self.database.get_reward(new_query, self.phase)
         else:
             return 0.0
@@ -190,13 +194,15 @@ class ReJoin(Environment):
         return actions
 
     def _set_next_state(self, action):
-        states = self.states["tree_structure"]
+        print("\n\nGET NEXT STATE\n\n")
+
+        states = self.state["tree_structure"]
         s = self._join(states[action[0]], states[action[1]])
         del states[max(action[0], action[1])]
         del states[min(action[0], action[1])]
         states.append(s)
         states.append([0] * len(self.num_tables))
-        self.states["tree_structure"] = states
+        self.state["tree_structure"] = states
 
     def _join(self, s1, s2):
         # 0 1 0 0 0
@@ -211,6 +217,9 @@ class ReJoin(Environment):
         # 0 1/2 1/2 0 0
 
     def _action_space(self):
+
+        print("\n\n_ACTION SPACE\n\n")
+
         jp = self.observation_space[1]
         states = self.observation_space[0]
         action_space = []
