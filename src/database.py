@@ -14,7 +14,9 @@ class Database:
         self.tables = list(self.tables_attributes.keys())
         self.attributes = []
         for k in self.tables_attributes:
-            self.attributes = self.attributes + [k + "." + v for v in self.tables_attributes[k]]
+            self.attributes = self.attributes + [
+                k + "." + v for v in self.tables_attributes[k]
+            ]
 
         self.pp = pprint.PrettyPrinter(indent=2)
 
@@ -44,7 +46,8 @@ class Database:
             "INNER JOIN information_schema.tables t ON c.table_name = t.table_name "
             "AND c.table_schema = t.table_schema "
             "AND t.table_type = 'BASE TABLE' "
-            "AND t.table_schema = 'public'"
+            "AND t.table_schema = 'public' "
+            "AND c.table_name != 'queries'"
         )
         cursor.execute(q)
         rows = cursor.fetchall()
@@ -92,12 +95,21 @@ class Database:
         except ValueError:
             return False
 
-    def construct_query(self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases):
+    def construct_query(
+        self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases
+    ):
 
         tables_to_alias = {}
 
         # print(join_ordering)
-        subq, alias = self.recursive_construct(join_ordering, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases)
+        subq, alias = self.recursive_construct(
+            join_ordering,
+            attrs,
+            joined_attrs,
+            tables_to_alias,
+            alias_to_tables,
+            aliases,
+        )
 
         select_clause = utils.get_select_clause(query_ast, tables_to_alias, alias)
         where_clause = utils.get_where_clause(query_ast, tables_to_alias, alias)
@@ -109,24 +121,25 @@ class Database:
         print("\n\nTables to aliases: ")
         self.print_dict(tables_to_alias)
 
-        query = (
-            select_clause
-            + " FROM " + subq
-            + where_clause
-            + limit
-            )
+        query = select_clause + " FROM " + subq + where_clause + limit
 
         # print(query)
         self.counter = 0
         return query
 
-    def recursive_construct(self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases):
+    def recursive_construct(
+        self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
+    ):
 
         if isinstance(subtree, str):
             return subtree, subtree
 
-        left, left_alias = self.recursive_construct(subtree[0], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases)
-        right, right_alias = self.recursive_construct(subtree[1], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases)
+        left, left_alias = self.recursive_construct(
+            subtree[0], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
+        )
+        right, right_alias = self.recursive_construct(
+            subtree[1], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
+        )
 
         new_alias = "J" + str(self.counter)
         tables_to_alias[left_alias] = new_alias
@@ -149,7 +162,9 @@ class Database:
         if right == right_alias:
             right = aliases[right][1] + " AS " + right
 
-        clause = self.select_clause(alias_to_tables, left_alias, right_alias, attrs, aliases)
+        clause = self.select_clause(
+            alias_to_tables, left_alias, right_alias, attrs, aliases
+        )
 
         subquery = (
             "( SELECT "
@@ -178,7 +193,9 @@ class Database:
 
         return subquery, new_alias
 
-    def update_joined_attrs(self, old_pair, new_alias, joined_attrs):           # Optimize this maybe
+    def update_joined_attrs(
+        self, old_pair, new_alias, joined_attrs
+    ):  # Optimize this maybe
 
         # Delete the two elements corresponding to the subtrees we joined  e.g. [A,B]->[id, id2], [B,A]->[id2, id]
         del joined_attrs[(old_pair[0], old_pair[1])]
@@ -210,25 +227,33 @@ class Database:
         # tables_left = alias_to_tables[left_alias] ; tables_right = alias_to_tables[right_alias]
         # print(tables_left); print(tables_right)
 
-        self.recursive_select_clause(clause, "", alias_to_tables, left_alias, attrs, left_alias, aliases)
-        self.recursive_select_clause(clause, "", alias_to_tables, right_alias, attrs, right_alias, aliases)
+        self.recursive_select_clause(
+            clause, "", alias_to_tables, left_alias, attrs, left_alias, aliases
+        )
+        self.recursive_select_clause(
+            clause, "", alias_to_tables, right_alias, attrs, right_alias, aliases
+        )
 
         select_clause = ""
-        for i in range(len(clause)-1):
+        for i in range(len(clause) - 1):
             select_clause += clause[i] + ", "
-        select_clause += clause[len(clause)-1]
+        select_clause += clause[len(clause) - 1]
         # print(select_clause)
 
         return select_clause
 
-    def recursive_select_clause(self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases):
+    def recursive_select_clause(
+        self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases
+    ):
 
         # print(alias)
         rels = alias_to_tables[alias]
         if len(rels) > 1:
             for rel in rels:
                 path1 = path + rel + "_"
-                self.recursive_select_clause(clause, path1, alias_to_tables, rel, attrs, base_alias, aliases)
+                self.recursive_select_clause(
+                    clause, path1, alias_to_tables, rel, attrs, base_alias, aliases
+                )
         else:
             attributes = attrs[aliases[rels[0]][1]]
             for attr in attributes:
@@ -237,8 +262,8 @@ class Database:
 
     def get_reward(self, query, phase):
         if phase == 1:
-            return self.optimizer_cost(query)           # Get Cost Model's Estimate
-        return self.get_query_time(query)[1]            # Get actual query-execution latency
+            return self.optimizer_cost(query)  # Get Cost Model's Estimate
+        return self.get_query_time(query)[1]  # Get actual query-execution latency
 
     def _join(self, s1, s2):
         # 0 1 0 0 0
