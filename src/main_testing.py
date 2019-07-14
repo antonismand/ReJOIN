@@ -81,13 +81,15 @@ for action_pair in action_pairs:
         join_ordering[action_pair[0]],
         join_ordering[action_pair[1]],
     ]
+
+    final_ordering = join_ordering[action_pair[0]]
+
     del join_ordering[action_pair[1]]
 
     tmp = zip(range(len(db.tables)), join_ordering)
     for i in tmp:
         print(i)
 
-    final_ordering = join_ordering[action_pair[0]]    # Is it (min(action_pair[0], action_pair[1])]) ?
 
 print("\n\nFinal Join Ordering: ", final_ordering)
 state_vector.convert_join_ordering_to_alias(final_ordering)
@@ -179,3 +181,34 @@ print("------------------------------------------\n\n")
 # break
 
 # db.close()
+
+
+
+
+
+# def action_space():
+#     #jp = self.observation_space[1]
+#     #states = self.observation_space[0]
+#     jp = [
+#         [0, 0, 1, 0],
+#         [0, 0, 1, 1],
+#         [1, 1, 0, 0],
+#         [0, 1, 0, 0],
+#     ]
+#     states = [
+#         [1/2, 0, 1/2, 0],
+#         [0, 1, 0, 0],
+#         [0, 0, 0, 1],
+#         #[0, 0, 0, 1],
+#     ]
+#     action_space = []
+#     for i in range(0, len(states)):
+#         for j in range(i + 1, len(states)):
+#             for idx1, val1 in enumerate(states[i]):
+#                 for idx2, val2 in enumerate(states[j]):
+#                     if val1 != 0 and val2 != 0 and jp[idx1][idx2] == 1:
+#                         action_space.append((i, j))
+#
+#     print(action_space)
+#     return True
+

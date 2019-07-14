@@ -1,12 +1,11 @@
 from __future__ import absolute_import
-from __future__ import division
 from __future__ import print_function
+from __future__ import division
 
 from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from src.environment import ReJoin
-from src.state import *
 from src.database import *
 
 import argparse
@@ -26,8 +25,8 @@ def make_args_parser():
     parser.add_argument('-a', '--agent-config', default='./config/ppo.json', help="Agent configuration file")
     parser.add_argument('-n', '--network-spec', default='./config/mlp2-network.json', help="Network specification file")
     parser.add_argument('-rap', '--repeat-action-probability', help="Repeat action probability", type=float, default=0.0)
-    parser.add_argument('-e', '--episodes', type=int, default=1, help="Number of episodes")
-    parser.add_argument('-t', '--max-timesteps', type=int, default=2000, help="Maximum number of timesteps per episode")
+    parser.add_argument('-e', '--episodes', type=int, default=3, help="Number of episodes")
+    parser.add_argument('-t', '--max-timesteps', type=int, default=20, help="Maximum number of timesteps per episode")
     parser.add_argument('-s', '--save', help="Save agent to this dir")
     parser.add_argument('-se', '--save-episodes', type=int, default=100, help="Save agent every x episodes")
     parser.add_argument('-l', '--load', help="Load agent from this dir")
@@ -95,6 +94,7 @@ def main():
     else:
         raise TensorForceError("No network configuration provided.")
 
+    # Todo: Pass this via JSON
     network_spec = [
         [
             dict(type='input', names=['tree_structure']),
@@ -137,7 +137,7 @@ def main():
 
     # ~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~ #
 
-    report_episodes = 10
+    report_episodes = 1
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
@@ -154,41 +154,12 @@ def main():
     # Start Training
     runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
 
-    sys.exit(0)
-
     runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
     environment.close()
 
     db.close()
-
-
-# def action_space():
-#     #jp = self.observation_space[1]
-#     #states = self.observation_space[0]
-#     jp = [
-#         [0, 0, 1, 0],
-#         [0, 0, 1, 1],
-#         [1, 1, 0, 0],
-#         [0, 1, 0, 0],
-#     ]
-#     states = [
-#         [1/2, 0, 1/2, 0],
-#         [0, 1, 0, 0],
-#         [0, 0, 0, 1],
-#         #[0, 0, 0, 1],
-#     ]
-#     action_space = []
-#     for i in range(0, len(states)):
-#         for j in range(i + 1, len(states)):
-#             for idx1, val1 in enumerate(states[i]):
-#                 for idx2, val2 in enumerate(states[j]):
-#                     if val1 != 0 and val2 != 0 and jp[idx1][idx2] == 1:
-#                         action_space.append((i, j))
-#
-#     print(action_space)
-#     return True
 
 
 if __name__ == '__main__':

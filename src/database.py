@@ -102,6 +102,10 @@ class Database:
         select_clause = utils.get_select_clause(query_ast, tables_to_alias, alias)
         where_clause = utils.get_where_clause(query_ast, tables_to_alias, alias)
 
+        limit = ""
+        if "limit" in query_ast:
+            limit = " LIMIT " + str(query_ast["limit"])
+
         print("\n\nTables to aliases: ")
         self.print_dict(tables_to_alias)
 
@@ -109,6 +113,7 @@ class Database:
             select_clause
             + " FROM " + subq
             + where_clause
+            + limit
             )
 
         # print(query)
@@ -231,11 +236,9 @@ class Database:
                 clause.append(base_alias + "." + tmp + " AS " + base_alias + "_" + tmp)
 
     def get_reward(self, query, phase):
-        # get reward from specific episode(tuples of joins)
-        # query = query  # todo reorder query from tree
         if phase == 1:
-            return self.optimizer_cost(query)
-        return self.get_query_time(query)[1]
+            return self.optimizer_cost(query)           # Get Cost Model's Estimate
+        return self.get_query_time(query)[1]            # Get actual query-execution latency
 
     def _join(self, s1, s2):
         # 0 1 0 0 0
