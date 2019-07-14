@@ -56,8 +56,12 @@ class ReJoin(Environment):
         """
 
         states = dict()
-        states["tree_structure"] = dict(shape=(self.num_tables*self.num_tables), type="float")
-        states["join_predicates"] = dict(shape=(self.num_tables*self.num_tables), type="float")
+        states["tree_structure"] = dict(
+            shape=(self.num_tables * self.num_tables), type="float"
+        )
+        states["join_predicates"] = dict(
+            shape=(self.num_tables * self.num_tables), type="float"
+        )
         states["selection_predicates"] = dict(shape=self.num_attrs, type="float")
         print(states)
         return states
@@ -112,13 +116,13 @@ class ReJoin(Environment):
 
         # Create a new initial state
         # filename = self.file_names[self.episode_curr]
-        # # filename = self.file_names[0]
-        # file = open(self.dataset + "/" + filename, "r")
-        # self.query = file.read()
+        filename = self.file_names[0]
+        file = open(self.dataset + "/" + filename, "r")
+        self.query = file.read()
 
         # [[ci,akt], an]
-        self.query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
-        "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
+        # self.query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
+        # "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
 
         self.state_vector = StateVector(self.query, self.tables, self.attributes)
         self.join_num = self.state_vector.join_num
@@ -126,7 +130,6 @@ class ReJoin(Environment):
         self.memory_actions = []
         self.episode_curr += 1
         self.step_curr = 0
-
 
         # self.join_ordering = self.tables.copy()
 
@@ -147,8 +150,12 @@ class ReJoin(Environment):
         """
 
         # Re-shape in order to manipulate the state
-        self.state["join_predicates"] = self.state["join_predicates"].reshape(self.num_tables, self.num_tables)
-        self.state["tree_structure"] = self.state["tree_structure"].reshape(self.num_tables, self.num_tables)
+        self.state["join_predicates"] = self.state["join_predicates"].reshape(
+            self.num_tables, self.num_tables
+        )
+        self.state["tree_structure"] = self.state["tree_structure"].reshape(
+            self.num_tables, self.num_tables
+        )
 
         print(self.state["join_predicates"].shape)
         print(self.state["tree_structure"].shape)
@@ -156,23 +163,10 @@ class ReJoin(Environment):
         self.step_curr += 1
         print("Step:", self.step_curr, " Join Num:", self.join_num)
 
-        possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
-        print("Possible actions", possible_actions)
-
-        print("Pre-action:", action)
-        action = action % len(possible_actions)  # workaround hack
-        action_pair = possible_actions[action]
-        print("State dependent-action (mod):", action)
-        print("Chose pair:", action_pair)
-
         # Get reward and process terminal & next state.
         terminal = self.is_terminal
 
-        self.pp.pprint(self.state["tree_structure"])
-        self._set_next_state(action_pair)
-
-        self.memory_actions.append(action_pair)
-        print("Memory_Actions:", self.memory_actions)
+        # self.pp.pprint(self.state["tree_structure"])
 
         if terminal:
             final_ordering = self._get_final_ordering()
@@ -180,6 +174,18 @@ class ReJoin(Environment):
             reward = self.get_reward(final_ordering)
         else:
             reward = 0
+            possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
+            print("Possible actions", possible_actions)
+
+            print("Pre-action:", action)
+            action = action % len(possible_actions)  # workaround hack
+            action_pair = possible_actions[action]
+            print("State dependent-action (mod):", action)
+            print("Chose pair:", action_pair)
+
+            self._set_next_state(action_pair)
+            self.memory_actions.append(action_pair)
+            print("Memory_Actions:", self.memory_actions)
 
         self.state["join_predicates"] = self.state["join_predicates"].flatten()
         self.state["tree_structure"] = self.state["tree_structure"].flatten()
@@ -189,16 +195,15 @@ class ReJoin(Environment):
     def get_reward(self, final_ordering):
         """Reward is given for the final state."""
 
-        if self.is_terminal:
-            constructed_query = self.database.construct_query(self.state_vector.query_ast, final_ordering,
-                                                              self.database. tables_attributes,
-                                                              self.state_vector.joined_attrs,
-                                                              self.state_vector.alias_to_tables,
-                                                              self.state_vector.aliases)
-            reward = 1 / self.database.get_reward(constructed_query, self.phase)
-        else:
-            # Partial join-orderings get a zero-reward
-            reward = 0.0
+        constructed_query = self.database.construct_query(
+            self.state_vector.query_ast,
+            final_ordering,
+            self.database.tables_attributes,
+            self.state_vector.joined_attrs,
+            self.state_vector.alias_to_tables,
+            self.state_vector.aliases,
+        )
+        reward = 1 / self.database.get_reward(constructed_query, self.phase)
 
         print("\nReward: ", reward)
         return reward
@@ -216,7 +221,9 @@ class ReJoin(Environment):
                     for idx2, val2 in enumerate(states[j]):
                         if val1 != 0 and val2 != 0 and jp[idx1][idx2] == 1:
                             actions.append((i, j))
-                            actions.append((j, i))  # ToDo:  Examine if this is redundant info during training
+                            actions.append(
+                                (j, i)
+                            )  # ToDo:  Examine if this is redundant info during training
         return actions
 
     def _set_next_state(self, action):
@@ -256,14 +263,21 @@ class ReJoin(Environment):
         final_ordering = []
 
         for action_pair in self.memory_actions:
-            print("\nJoin:", join_ordering[action_pair[0]], "⟕", join_ordering[action_pair[1]])
+            print(
+                "\nJoin:",
+                join_ordering[action_pair[0]],
+                "⟕",
+                join_ordering[action_pair[1]],
+            )
 
             join_ordering[action_pair[0]] = [
                 join_ordering[action_pair[0]],
                 join_ordering[action_pair[1]],
             ]
 
-            final_ordering = join_ordering[action_pair[0]]  # Is it (min(action_pair[0], action_pair[1])]) ?
+            final_ordering = join_ordering[
+                action_pair[0]
+            ]  # Is it (min(action_pair[0], action_pair[1])]) ?
 
             del join_ordering[action_pair[1]]
 
