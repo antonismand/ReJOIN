@@ -66,6 +66,29 @@ class Database:
         pp = pprint.PrettyPrinter(indent=2)
         pp.pprint(self.tables_attributes)
 
+    def get_query_by_id(self, id):
+        cursor = self.conn.cursor()
+        q = "SELECT * FROM queries WHERE id = %s"
+        cursor.execute(q, (str(id),))
+        rows = cursor.fetchone()
+        cursor.close()
+        attrs = ["id", "file", "query", "moz", "planning", "execution", "cost"]
+
+        zipbObj = zip(attrs, rows)
+        return dict(zipbObj)
+
+    def get_query_by_filename(self, file):
+        file = file + ".sql"
+        cursor = self.conn.cursor()
+        q = "SELECT * FROM queries WHERE file_name = %s"
+        cursor.execute(q, (file,))
+        rows = cursor.fetchone()
+        cursor.close()
+        attrs = ["id", "file", "query", "moz", "planning", "execution", "cost"]
+
+        zipbObj = zip(attrs, rows)
+        return dict(zipbObj)
+
     def close(self):
         if self.conn:
             self.conn.close()
@@ -74,9 +97,9 @@ class Database:
         query = "EXPLAIN (FORMAT JSON) " + query
         cursor = self.conn.cursor()
         cursor.execute(query)
-        rows = cursor.fetchall()
+        rows = cursor.fetchone()
         cursor.close()
-        return rows[0][0][0]["Plan"]["Total Cost"]
+        return rows[0][0]["Plan"]["Total Cost"]
 
     def get_query_time(self, query):
         query = "EXPLAIN ANALYZE " + query
