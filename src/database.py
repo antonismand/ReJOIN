@@ -12,7 +12,7 @@ class Database:
 
         self.tables_attributes = self.get_tables_attributes()  # to remove
         self.tables = list(self.tables_attributes.keys())  # to remove
-        self.relations, self.attributes2 = self.get_relations_attributes()
+        self.relations, self.relation_attributes = self.get_relations_attributes()
         self.attributes = []  # to replace with attributes2
         for k in self.tables_attributes:
             self.attributes = self.attributes + [
@@ -41,6 +41,19 @@ class Database:
             print("Error connecting")
 
     def get_tables_attributes(self):
+        """
+        Returns tables and their attributes
+
+        Used by get_relations_attributes
+
+        Args:
+            None
+
+        Returns:
+            tables_attributes: dict {'table1':['attr1','attr2',..], .. }
+
+        """
+
         cursor = self.conn.cursor()
         q = (
             "SELECT c.table_name, c.column_name FROM information_schema.columns c "
@@ -64,17 +77,29 @@ class Database:
         return tables_attributes
 
     def get_relations_attributes(self):
+        """
+        Returns relations and their attributes
+
+        Uses tables/attributes from the database but also aliases found on the dataset's queries
+
+        Args:
+            None
+        Returns:
+            relations: list ['alias1','alias2',..]
+            relations_attributes: dict {'alias1':['attr1','attr2',..], .. }
+
+        """
+
         tables_attributes = self.get_tables_attributes()
-        attributes = []
+        relations_attributes = {}
         relations = []
         for i in range(1, 112):
             q = self.get_query_by_id(i)
             for r in q["moz"]["from"]:
                 if r["name"] not in relations:
                     relations.append(r["name"])
-                    for attr in tables_attributes[r["value"]]:
-                        attributes.append(r["name"] + "." + attr)
-        return relations, attributes
+                    relations_attributes[r["name"]] = tables_attributes[r["value"]]
+        return relations, relations_attributes
 
     def print_tables_attrs(self):
         pp = pprint.PrettyPrinter(indent=2)
