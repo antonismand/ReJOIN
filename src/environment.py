@@ -7,18 +7,14 @@ from src.state import StateVector
 
 import numpy as np
 import pprint
-import os
 
 
 class ReJoin(Environment):
-    def __init__(self, dataset, database, phase):
+    def __init__(self, database, phase):
 
         self.pp = pprint.PrettyPrinter(indent=2)
 
-        self.dataset = dataset
         self.database = database
-        self.file_names = os.listdir(dataset)
-
         self.tables = database.tables
         self.num_tables = len(database.tables)
 
@@ -115,10 +111,9 @@ class ReJoin(Environment):
         print("\n\nRESET\n\n")
 
         # Create a new initial state
-        # filename = self.file_names[self.episode_curr]
-        filename = self.file_names[0]
-        file = open(self.dataset + "/" + filename, "r")
-        self.query = file.read()
+        self.episode_curr += 1
+        # self.query = self.database.get_query_by_id(self.episode_curr)
+        self.query = self.database.get_query_by_id(1)
 
         # [[ci,akt], an]
         # self.query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
@@ -128,7 +123,6 @@ class ReJoin(Environment):
         self.join_num = self.state_vector.join_num
         self.state = self.state_vector.vectorize()
         self.memory_actions = []
-        self.episode_curr += 1
         self.step_curr = 0
 
         # self.join_ordering = self.tables.copy()

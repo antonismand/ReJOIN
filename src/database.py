@@ -1,4 +1,4 @@
-import src.database_env as creds
+import config.database as creds
 import psycopg2
 import pprint
 import src.database_utils as utils

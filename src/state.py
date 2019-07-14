@@ -1,4 +1,3 @@
-from moz_sql_parser import parse
 import numpy as np
 import pprint
 
@@ -11,7 +10,7 @@ class StateVector:
         self.query = query
         self.tables = tables
         self.attributes = attributes
-        self.query_ast = parse(query)
+        self.query_ast = query["moz"]  # remove?
         self.join_num = 0
 
         # Maps from original-names to aliases and vice-versa
@@ -43,9 +42,9 @@ class StateVector:
         results = []
         for v in self.query_ast["where"]["and"]:
             if (
-                    "eq" in v
-                    and isinstance(v["eq"][0], str)
-                    and isinstance(v["eq"][1], str)
+                "eq" in v
+                and isinstance(v["eq"][0], str)
+                and isinstance(v["eq"][1], str)
             ):
                 table_left = v["eq"][0].split(".")[0]
                 table_right = v["eq"][1].split(".")[0]
@@ -123,7 +122,7 @@ class StateVector:
             else:
                 self.convert_join_ordering_to_alias(join_ordering[i])
 
-    def print_state(self):             # Print for debugging
+    def print_state(self):  # Print for debugging
         print("\nTree-Structure:\n")
         print(np.array(self.tree_structure))
         print(np.array(self.tree_structure).shape)
