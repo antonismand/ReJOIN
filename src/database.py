@@ -8,11 +8,12 @@ class Database:
     def __init__(self):
         self.conn = self.connect()
         self.counter = 0
-        self.aiases = {}
+        self.aliases = {}  # unused?
 
-        self.tables_attributes = self.get_tables_attributes()
-        self.tables = list(self.tables_attributes.keys())
-        self.attributes = []
+        self.tables_attributes = self.get_tables_attributes()  # to remove
+        self.tables = list(self.tables_attributes.keys())  # to remove
+        self.relations, self.attributes2 = self.get_relations_attributes()
+        self.attributes = []  # to replace with attributes2
         for k in self.tables_attributes:
             self.attributes = self.attributes + [
                 k + "." + v for v in self.tables_attributes[k]
@@ -61,6 +62,19 @@ class Database:
                 tables_attributes[table] = [attribute]
 
         return tables_attributes
+
+    def get_relations_attributes(self):
+        tables_attributes = self.get_tables_attributes()
+        attributes = []
+        relations = []
+        for i in range(1, 112):
+            q = self.get_query_by_id(i)
+            for r in q["moz"]["from"]:
+                if r["name"] not in relations:
+                    relations.append(r["name"])
+                    for attr in tables_attributes[r["value"]]:
+                        attributes.append(r["name"] + "." + attr)
+        return relations, attributes
 
     def print_tables_attrs(self):
         pp = pprint.PrettyPrinter(indent=2)
