@@ -7,6 +7,9 @@ from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from src.environment import ReJoin
 from src.database import Database
+from tensorforce.agents import PPOAgent
+
+# from src.distribution import CustomCategorical
 
 import argparse
 import logging
@@ -22,13 +25,13 @@ def make_args_parser():
     parser.add_argument(
         "-a",
         "--agent-config",
-        default="../config/ppo.json",
+        default="config/ppo.json",
         help="Agent configuration file",
     )
     parser.add_argument(
         "-n",
         "--network-spec",
-        default="../config/mlp2-network.json",
+        default="config/mlp2-network.json",
         help="Network specification file",
     )
     parser.add_argument(
@@ -39,7 +42,7 @@ def make_args_parser():
         default=0.0,
     )
     parser.add_argument(
-        "-e", "--episodes", type=int, default=10, help="Number of episodes"
+        "-e", "--episodes", type=int, default=1000, help="Number of episodes"
     )
     parser.add_argument(
         "-t",
@@ -98,24 +101,25 @@ def main():
     else:
         raise TensorForceError("No network configuration provided.")
 
+    dims = 128
     # Todo: Pass this via JSON
     network_spec = [
         [
             dict(type="input", names=["tree_structure"]),
-            dict(type="dense", size=32, activation="relu"),
-            dict(type="dense", size=128, activation="relu"),
+            dict(type="flatten"),
+            dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="tree_structure_emb"),
         ],
         [
             dict(type="input", names=["join_predicates"]),
-            dict(type="dense", size=128, activation="relu"),
-            dict(type="dense", size=128, activation="relu"),
+            dict(type="flatten"),
+            dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="join_predicates_emb"),
         ],
         [
             dict(type="input", names=["selection_predicates"]),
-            dict(type="dense", size=128, activation="relu"),
-            dict(type="dense", size=128, activation="relu"),
+            dict(type="flatten"),
+            dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="selection_predicates_emb"),
         ],
         [
@@ -127,20 +131,28 @@ def main():
                     "selection_predicates_emb",
                 ],
             ),
-            dict(type="dense", size=128, activation="relu"),
-            dict(type="dense", size=128, activation="relu"),
+            dict(type="dense", size=dims, activation="relu"),
+            dict(type="dense", size=dims, activation="relu"),
             # dict(type='dueling', size=3, activation='none'),
             dict(type="output", name="prediction"),
         ],
     ]
 
     # Set up the PPO Agent
-    agent = Agent.from_spec(
-        spec=agent_config,
-        kwargs=dict(
-            states=environment.states, actions=environment.actions, network=network_spec
-        ),
+    agent = PPOAgent(
+        states=environment.states,
+        actions=environment.actions,
+        network=network_spec,
+        step_optimizer=dict(type="adam", learning_rate=1e-3),
+        # distributions=dict(action=dict(type=CustomCategorical)),
     )
+
+    # agent = Agent.from_spec(
+    #     spec=agent_config,
+    #     kwargs=dict(
+    #         states=environment.states, actions=environment.actions, network=network_spec
+    #     ),
+    # )
 
     runner = Runner(agent=agent, environment=environment)
 
@@ -174,13 +186,26 @@ def main():
     )
 
     # Start Training
-    runner.run(args.episodes, args.max_timesteps, episode_finished=episode_finished)
+    runner.run(
+        episodes=500,
+        max_episode_timesteps=args.max_timesteps,
+        episode_finished=episode_finished,
+    )
 
     runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
-    environment.close()
+    # environment.close()
+    # print(runner.episode_rewards)
+    # print(len(runner.episode_rewards))
+    def find_convergence(eps):
+        last = eps[-1]
+        for i in range(1, len(eps)):
+            if eps[i * -1] != last:
+                print("Converged at episode:", len(eps) - i + 2)
+                return True
 
+    find_convergence(runner.episode_rewards)
     db.close()
 
 

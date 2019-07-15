@@ -8,7 +8,7 @@ class StateVector:
         self.pp = pprint.PrettyPrinter(indent=2)
 
         self.query = query
-        print(query)
+        # print(query)
         self.tables = tables
         self.attributes = attributes
         self.query_ast = query["moz"]  # remove?
@@ -110,9 +110,9 @@ class StateVector:
 
     def vectorize(self):
         states = dict()
-        states["tree_structure"] = np.array(self.tree_structure, dtype=float).flatten()
-        states["join_predicates"] = np.array(self.join_predicates).flatten()
-        states["selection_predicates"] = np.array(self.selection_predicates).flatten()
+        states["tree_structure"] = np.array(self.tree_structure, dtype=float)
+        states["join_predicates"] = np.array(self.join_predicates)
+        states["selection_predicates"] = np.array(self.selection_predicates)
 
         return states
 

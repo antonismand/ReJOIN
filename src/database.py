@@ -135,16 +135,20 @@ class Database:
         if self.conn:
             self.conn.close()
 
-    def optimizer_cost(self, query):
-        query = "EXPLAIN (FORMAT JSON) " + query
+    def optimizer_cost(self, query, force_order=False):
+        join_collapse_limit = "SET join_collapse_limit = "
+        join_collapse_limit += "1" if force_order else "8"
+        query = join_collapse_limit + ";EXPLAIN (FORMAT JSON) " + query + ";"
         cursor = self.conn.cursor()
         cursor.execute(query)
         rows = cursor.fetchone()
         cursor.close()
         return rows[0][0]["Plan"]["Total Cost"]
 
-    def get_query_time(self, query):
-        query = "EXPLAIN ANALYZE " + query
+    def get_query_time(self, query, force_order=False):
+        join_collapse_limit = "SET join_collapse_limit = "
+        join_collapse_limit += "1" if force_order else "8"
+        query = join_collapse_limit + ";EXPLAIN ANALYZE " + query + ";"
         cursor = self.conn.cursor()
         cursor.execute(query)
         rows = cursor.fetchall()
@@ -160,7 +164,9 @@ class Database:
         except ValueError:
             return False
 
-    def construct_query(self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases):
+    def construct_query(
+        self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases
+    ):
 
         tables_to_alias = {}
 
@@ -181,8 +187,8 @@ class Database:
         if "limit" in query_ast:
             limit = " LIMIT " + str(query_ast["limit"])
 
-        print("\n\nTables to aliases: ")
-        self.print_dict(tables_to_alias)
+        # print("\n\nTables to aliases: ")
+        # self.print_dict(tables_to_alias)
 
         query = select_clause + " FROM " + subq + where_clause + limit
 
@@ -190,7 +196,9 @@ class Database:
         self.counter = 0
         return query
 
-    def recursive_construct(self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases):
+    def recursive_construct(
+        self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
+    ):
 
         if isinstance(subtree, str):
             return subtree, subtree
@@ -207,16 +215,16 @@ class Database:
         tables_to_alias[right_alias] = new_alias
         self.counter += 1
 
-        print("\n\nAliases to tables: ")
+        # print("\n\nAliases to tables: ")
         alias_to_tables[new_alias] = [left_alias, right_alias]
-        self.print_dict(alias_to_tables)
+        # self.print_dict(alias_to_tables)
 
-        print("\n\nJoining subtrees: " + left_alias + " ⟕ " + right_alias)
+        # print("\n\nJoining subtrees: " + left_alias + " ⟕ " + right_alias)
 
         attr1, attr2 = joined_attrs[(left_alias, right_alias)]
-        print("\n\nJoined Attrs: ")
-        self.print_dict(joined_attrs)
-        print("Attrs: " + attr1 + " , " + attr2)
+        # print("\n\nJoined Attrs: ")
+        # self.print_dict(joined_attrs)
+        # print("Attrs: " + attr1 + " , " + attr2)
 
         if left == left_alias:
             left = aliases[left][1] + " AS " + left
@@ -247,8 +255,8 @@ class Database:
         )
 
         self.update_joined_attrs((left_alias, right_alias), new_alias, joined_attrs)
-        print("\n\nUpdated Joined Attrs: ")
-        self.print_dict(joined_attrs)
+        # print("\n\nUpdated Joined Attrs: ")
+        # self.print_dict(joined_attrs)
 
         # print(subquery)
 
@@ -304,7 +312,9 @@ class Database:
 
         return select_clause
 
-    def recursive_select_clause(self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases):
+    def recursive_select_clause(
+        self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases
+    ):
 
         # print(alias)
         rels = alias_to_tables[alias]
@@ -322,8 +332,8 @@ class Database:
 
     def get_reward(self, query, phase):
         if phase == 1:
-            return self.optimizer_cost(query)  # Get Cost Model's Estimate
-        return self.get_query_time(query)[1]  # Get actual query-execution latency
+            return self.optimizer_cost(query, True)  # Get Cost Model's Estimate
+        return self.get_query_time(query, True)[1]  # Get actual query-execution latency
 
     def print_dict(self, d):
         for key in d:

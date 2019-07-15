@@ -53,13 +53,13 @@ class ReJoin(Environment):
 
         states = dict()
         states["tree_structure"] = dict(
-            shape=(self.num_tables * self.num_tables), type="float"
+            shape=(self.num_tables, self.num_tables), type="float"
         )
         states["join_predicates"] = dict(
-            shape=(self.num_tables * self.num_tables), type="float"
+            shape=(self.num_tables, self.num_tables), type="float"
         )
         states["selection_predicates"] = dict(shape=self.num_attrs, type="float")
-        print(states)
+        # print(states)
         return states
 
     @property
@@ -108,7 +108,7 @@ class ReJoin(Environment):
             initial state of reset environment.
         """
 
-        print("\n\nRESET\n\n")
+        # print("\n\nRESET\n\n")
 
         # Create a new initial state
         self.episode_curr += 1
@@ -128,7 +128,7 @@ class ReJoin(Environment):
 
         # self.join_ordering = self.tables.copy()
 
-        self.pp.pprint(self.state_vector.query_ast)
+        # self.pp.pprint(self.state_vector.query_ast)
         # print(state.join_predicates)
         # print(state.selection_predicates)
         return self.state
@@ -145,15 +145,15 @@ class ReJoin(Environment):
         """
 
         # Re-shape in order to manipulate the state
-        self.state["join_predicates"] = self.state["join_predicates"].reshape(
-            self.num_tables, self.num_tables
-        )
-        self.state["tree_structure"] = self.state["tree_structure"].reshape(
-            self.num_tables, self.num_tables
-        )
+        # self.state["join_predicates"] = self.state["join_predicates"].reshape(
+        #     self.num_tables, self.num_tables
+        # )
+        # self.state["tree_structure"] = self.state["tree_structure"].reshape(
+        #     self.num_tables, self.num_tables
+        # )
 
         self.step_curr += 1
-        print("Step:", self.step_curr, " Join Num:", self.join_num)
+        # print("Step:", self.step_curr, " Join Num:", self.join_num)
 
         # Get reward and process terminal & next state.
         terminal = self.is_terminal
@@ -162,7 +162,7 @@ class ReJoin(Environment):
 
         if terminal:
             final_ordering = self._get_final_ordering()
-            print("Final Ordering:", final_ordering)
+            # print("Final Ordering:", final_ordering)
             reward = self.get_reward(final_ordering)
         else:
             reward = 0
@@ -173,14 +173,14 @@ class ReJoin(Environment):
             action = action % len(possible_actions)  # workaround hack
             action_pair = possible_actions[action]
             print("State dependent-action (mod):", action)
-            print("Chose pair:", action_pair)
+            # print("Chose pair:", action_pair)
 
             self._set_next_state(action_pair)
             self.memory_actions.append(action_pair)
-            print("Memory_Actions:", self.memory_actions)
+            # print("Memory_Actions:", self.memory_actions)
 
-        self.state["join_predicates"] = self.state["join_predicates"].flatten()
-        self.state["tree_structure"] = self.state["tree_structure"].flatten()
+        # self.state["join_predicates"] = self.state["join_predicates"].flatten()
+        # self.state["tree_structure"] = self.state["tree_structure"].flatten()
 
         return self.state, terminal, reward
 
@@ -195,9 +195,10 @@ class ReJoin(Environment):
             self.state_vector.alias_to_tables,
             self.state_vector.aliases,
         )
-        reward = 1 / self.database.get_reward(constructed_query, self.phase)
+        cost = self.database.get_reward(constructed_query, self.phase)
+        reward = 1 / cost * 1000000
 
-        print("\nReward: ", reward)
+        print("\nCost: ", round(cost))
         return reward
 
     def _get_valid_actions(self):
@@ -220,11 +221,11 @@ class ReJoin(Environment):
 
     def _set_next_state(self, action):
 
-        print("\n\nGET NEXT STATE\n\n")
+        # print("\n\nGET NEXT STATE\n\n")
         np.set_printoptions(linewidth=150)
-        print("Current State:\n")
-        print(self.state["tree_structure"])
-        print(self.state["tree_structure"].shape)
+        # print("Current State:\n")
+        # print(self.state["tree_structure"])
+        # print(self.state["tree_structure"].shape)
 
         states = self.state["tree_structure"]
         self._join_subtrees(states[action[0]], states[action[1]])
@@ -233,10 +234,10 @@ class ReJoin(Environment):
         states = np.vstack((states, [padding]))
         self.state["tree_structure"] = states
 
-        print("Next State:\n")
-
-        print(self.state["tree_structure"])
-        print(self.state["tree_structure"].shape)
+        # print("Next State:\n")
+        #
+        # print(self.state["tree_structure"])
+        # print(self.state["tree_structure"].shape)
 
     def _join_subtrees(self, s1, s2):
 
@@ -254,17 +255,17 @@ class ReJoin(Environment):
 
         join_ordering = self.database.tables.copy()
         tmp = zip(range(self.num_tables), join_ordering)
-        for i in tmp:
-            print(i)
+        # for i in tmp:
+        #     print(i)
         final_ordering = []
 
         for action_pair in self.memory_actions:
-            print(
-                "\nJoin:",
-                join_ordering[action_pair[0]],
-                "⟕",
-                join_ordering[action_pair[1]],
-            )
+            # print(
+            #     "\nJoin:",
+            #     join_ordering[action_pair[0]],
+            #     "⟕",
+            #     join_ordering[action_pair[1]],
+            # )
 
             join_ordering[action_pair[0]] = [
                 join_ordering[action_pair[0]],
@@ -278,11 +279,11 @@ class ReJoin(Environment):
             del join_ordering[action_pair[1]]
 
             tmp = zip(range(self.num_tables), join_ordering)
-            for i in tmp:
-                print(i)
+            # for i in tmp:
+            #     print(i)
 
         print("\n\nFinal Join Ordering: ", final_ordering)
         self.state_vector.convert_join_ordering_to_alias(final_ordering)
-        print("Final Join Ordering with Aliases: ", final_ordering)
+        # print("Final Join Ordering with Aliases: ", final_ordering)
 
         return final_ordering
