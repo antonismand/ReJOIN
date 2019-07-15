@@ -105,6 +105,10 @@ class Database:
         pp = pprint.PrettyPrinter(indent=2)
         pp.pprint(self.tables_attributes)
 
+    def print_relations_attrs(self):
+        pp = pprint.PrettyPrinter(indent=2)
+        pp.pprint(self.relation_attributes)
+
     def get_query_by_id(self, id):
         cursor = self.conn.cursor()
         q = "SELECT * FROM queries WHERE id = %s"
@@ -124,7 +128,6 @@ class Database:
         rows = cursor.fetchone()
         cursor.close()
         attrs = ["id", "file", "query", "moz", "planning", "execution", "cost"]
-
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
 
@@ -157,9 +160,7 @@ class Database:
         except ValueError:
             return False
 
-    def construct_query(
-        self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases
-    ):
+    def construct_query(self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases):
 
         tables_to_alias = {}
 
@@ -185,13 +186,11 @@ class Database:
 
         query = select_clause + " FROM " + subq + where_clause + limit
 
-        # print(query)
+        print(query)
         self.counter = 0
         return query
 
-    def recursive_construct(
-        self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
-    ):
+    def recursive_construct(self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases):
 
         if isinstance(subtree, str):
             return subtree, subtree
@@ -255,16 +254,17 @@ class Database:
 
         return subquery, new_alias
 
-    def update_joined_attrs(
-        self, old_pair, new_alias, joined_attrs
-    ):  # Optimize this maybe
+    def update_joined_attrs(self, old_pair, new_alias, joined_attrs):
+        # Optimize this maybe
 
-        # Delete the two elements corresponding to the subtrees we joined  e.g. [A,B]->[id, id2], [B,A]->[id2, id]
+        # Delete the two elements corresponding to the subtrees we joined
+        # e.g. [A,B]->[id, id2], [B,A]->[id2, id]
         del joined_attrs[(old_pair[0], old_pair[1])]
         del joined_attrs[(old_pair[1], old_pair[0])]
 
         # Search for other entries with values from the old pair and update their name
-        for (t1, t2) in joined_attrs:
+        keys = list(joined_attrs.keys())
+        for (t1, t2) in keys:
 
             (rel1, attr1) = (t1, joined_attrs[(t1, t2)][0])
             (rel2, attr2) = (t2, joined_attrs[(t1, t2)][1])
@@ -304,9 +304,7 @@ class Database:
 
         return select_clause
 
-    def recursive_select_clause(
-        self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases
-    ):
+    def recursive_select_clause(self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases):
 
         # print(alias)
         rels = alias_to_tables[alias]
@@ -326,17 +324,6 @@ class Database:
         if phase == 1:
             return self.optimizer_cost(query)  # Get Cost Model's Estimate
         return self.get_query_time(query)[1]  # Get actual query-execution latency
-
-    def _join(self, s1, s2):
-        # 0 1 0 0 0
-        # 0 0 1 0 0
-        result = [0] * self.TABLES
-        for i in range(0, self.TABLES):
-            if s1[i] != 0:
-                result[i] = s1[i] / 2
-            elif s2[i] != 0:
-                result[i] = s2[i] / 2
-        return result
 
     def print_dict(self, d):
         for key in d:

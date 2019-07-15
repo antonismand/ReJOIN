@@ -8,6 +8,7 @@ class StateVector:
         self.pp = pprint.PrettyPrinter(indent=2)
 
         self.query = query
+        print(query)
         self.tables = tables
         self.attributes = attributes
         self.query_ast = query["moz"]  # remove?

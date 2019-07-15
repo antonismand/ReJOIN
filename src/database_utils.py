@@ -49,7 +49,7 @@ def get_select_clause(query_ast, tables_to_alias, alias):
 
     select_clause = "SELECT "
     for i in range(len(select) - 1):
-        select_clause += select[i][0] + select[i][1] + ","
+        select_clause += select[i][0] + select[i][1] + ", "
     select_clause += select[len(select) - 1][0] + select[len(select) - 1][1]
 
     # print(select_clause)
@@ -60,34 +60,76 @@ def construct_stmt(stmt, operator_map, tables_to_alias, alias):
 
     # print(stmt)
     key = list(stmt.keys())[0]
+
     if key == "and" or key == "or":  # Need to go deeper
+
         return (
-            "("
-            + construct_stmt(stmt[key][0], operator_map, tables_to_alias, alias)
-            + ") "
-            + key.upper()
-            + " ("
-            + construct_stmt(stmt[key][1], operator_map, tables_to_alias, alias)
-            + ")"
-        )
-    elif not isinstance(stmt[key][1], str):  # R-value is Dict (Literal)
-        return (
-            get_alias(stmt[key][0], tables_to_alias, alias)
-            + " "
-            + operator_map[key]
-            + " "
-            + "'"
-            + stmt[key][1]["literal"]
-            + "'"
+            "( "
+            + where_and_or(stmt, operator_map, tables_to_alias, alias)
+            + " )"
         )
     else:
+        if key == "between":
+            rvalue = str(stmt[key][1]) + " AND " + str(stmt[key][2])
+
+        elif isinstance(stmt[key][1], dict):      # Dict (Naively assuming it's a literal)
+
+            lit = stmt[key][1]["literal"]
+
+            if isinstance(lit, list):
+                rvalue = " ( "
+                for i in range(len(lit)-1):
+                    rvalue = rvalue + "'" + lit[i] + "', "
+                rvalue = rvalue + "'" + lit[len(lit)-1] + "' ) "
+
+            else: rvalue = "'" + lit + "'"
+
+        elif isinstance(stmt[key][1], int):     # Integer
+            rvalue = str(stmt[key][1])
+
+        else:
+            rvalue = get_alias(stmt[key][1], tables_to_alias, alias)
+
         return (
             get_alias(stmt[key][0], tables_to_alias, alias)
             + " "
             + operator_map[key]
             + " "
-            + get_alias(stmt[key][1], tables_to_alias, alias)
+            + rvalue
         )
+
+
+def where_and_or(where_ast, operator_map, tables_to_alias, alias):
+
+    where_and_clause = ""
+    if "and" in where_ast:
+        and_stmt = where_ast["and"]
+        where_and = []
+        for v in and_stmt:
+            if not (
+                    "eq" in v and isinstance(v["eq"][0], str) and isinstance(v["eq"][1], str)
+            ):  # if not a joining
+                where_and.append(construct_stmt(v, operator_map, tables_to_alias, alias))
+
+        for i in range(len(where_and) - 1):
+            where_and_clause += where_and[i] + " AND \n"
+        where_and_clause += where_and[len(where_and) - 1]
+
+    where_or_clause = ""
+    if "or" in where_ast:
+        or_stmt = where_ast["or"]
+        where_or = []
+        for v in or_stmt:
+            if not (
+                    "eq" in v and isinstance(v["eq"][0], str) and isinstance(v["eq"][1], str)
+            ):  # if not a joining
+                where_or.append(construct_stmt(v, operator_map, tables_to_alias, alias))
+
+        for i in range(len(where_or) - 1):
+            where_or_clause += where_or[i] + " OR \n"
+        where_or_clause += where_or[len(where_or) - 1]
+
+    return where_and_clause + where_or_clause
 
 
 def get_where_clause(query_ast, tables_to_alias, alias):
@@ -101,22 +143,14 @@ def get_where_clause(query_ast, tables_to_alias, alias):
         "like": "LIKE",
         "nlike": "NOT LIKE",
         "in": "IN",
+        "between": "BETWEEN"
     }  # to be filled with other possible values
 
-    where_stmt = query_ast["where"]["and"]
-    where = []
-    for v in where_stmt:
-        if not (
-            "eq" in v and isinstance(v["eq"][0], str) and isinstance(v["eq"][1], str)
-        ):  # if not a joining
-            where.append(construct_stmt(v, operator_map, tables_to_alias, alias))
+    where_ast = query_ast["where"]
+    where_clause = where_and_or(where_ast, operator_map, tables_to_alias, alias)
 
-    where_clause = ""
-    if len(where) > 0:
-        where_clause = " \nWHERE \n"
-        for i in range(len(where) - 1):
-            where_clause += where[i] + ",\n"
-        where_clause += where[len(where) - 1]
+    if where_clause != "":
+        return " \nWHERE \n" + where_clause
 
-    # print(where_clause)
-    return where_clause
+    else:
+        return ""

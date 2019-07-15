@@ -22,13 +22,13 @@ def make_args_parser():
     parser.add_argument(
         "-a",
         "--agent-config",
-        default="config/ppo.json",
+        default="../config/ppo.json",
         help="Agent configuration file",
     )
     parser.add_argument(
         "-n",
         "--network-spec",
-        default="config/mlp2-network.json",
+        default="../config/mlp2-network.json",
         help="Network specification file",
     )
     parser.add_argument(
@@ -70,7 +70,6 @@ def print_config(args):
 
 
 def main():
-
     args = make_args_parser()
     # print_config(args)
 

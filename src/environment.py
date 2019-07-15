@@ -113,7 +113,8 @@ class ReJoin(Environment):
         # Create a new initial state
         self.episode_curr += 1
         # self.query = self.database.get_query_by_id(self.episode_curr)
-        self.query = self.database.get_query_by_id(1)
+        # self.query = self.database.get_query_by_id(1)
+        self.query = self.database.get_query_by_filename("1a")
 
         # [[ci,akt], an]
         # self.query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
@@ -150,9 +151,6 @@ class ReJoin(Environment):
         self.state["tree_structure"] = self.state["tree_structure"].reshape(
             self.num_tables, self.num_tables
         )
-
-        print(self.state["join_predicates"].shape)
-        print(self.state["tree_structure"].shape)
 
         self.step_curr += 1
         print("Step:", self.step_curr, " Join Num:", self.join_num)
@@ -223,6 +221,10 @@ class ReJoin(Environment):
     def _set_next_state(self, action):
 
         print("\n\nGET NEXT STATE\n\n")
+        np.set_printoptions(linewidth=150)
+        print("Current State:\n")
+        print(self.state["tree_structure"])
+        print(self.state["tree_structure"].shape)
 
         states = self.state["tree_structure"]
         self._join_subtrees(states[action[0]], states[action[1]])
@@ -232,7 +234,7 @@ class ReJoin(Environment):
         self.state["tree_structure"] = states
 
         print("Next State:\n")
-        np.set_printoptions(linewidth=150)
+
         print(self.state["tree_structure"])
         print(self.state["tree_structure"].shape)
 

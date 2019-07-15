@@ -8,8 +8,8 @@ A "main" created for testing purposes
 """
 
 # [[ci,akt], an]
-query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
-        "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
+# query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
+#         "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
 
 # query = '''
 # SELECT MIN(mc.note) AS production_note,
@@ -35,6 +35,8 @@ query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS 
 pp = pprint.PrettyPrinter(indent=2)
 
 db = Database()
+query = db.get_query_by_id(1)
+
 state_vector = StateVector(query, db.tables, db.attributes)
 
 # -------------- Printing Messages Monitoring States -------------- #
@@ -46,6 +48,9 @@ pp.pprint(db.tables)
 print("------------------------------------------\n\n")
 print("------------------------\nTables & Attributes:\n")
 db.print_tables_attrs()
+print("------------------------------------------\n\n")
+print("------------------------\nRelations & Attributes:\n")
+db.print_relations_attrs()
 print("------------------------------------------\n\n")
 print("------------------------\nQuery Joined Attrs:\n")
 state_vector.print_joined_attrs()
@@ -63,52 +68,52 @@ print("------------------------\nAlias-To-Tables:\n")
 state_vector.print_alias_to_tables()
 print("------------------------------------------\n\n")
 # ----------------------------------------------------------------- #
-
-# Actions followed by the agent
-action_pairs = [[2, 1], [0, 1]]     # Specify a deep left join ordering
-
-print("\n\nSpecify a Join Ordering:")
-join_ordering = db.tables.copy()
-tmp = zip(range(len(db.tables)), join_ordering)
-for i in tmp:
-    print(i)
-final_ordering = []
-
-for action_pair in action_pairs:
-    print("\nJoin:", join_ordering[action_pair[0]], "⟕", join_ordering[action_pair[1]])
-
-    join_ordering[action_pair[0]] = [
-        join_ordering[action_pair[0]],
-        join_ordering[action_pair[1]],
-    ]
-
-    final_ordering = join_ordering[action_pair[0]]
-
-    del join_ordering[action_pair[1]]
-
-    tmp = zip(range(len(db.tables)), join_ordering)
-    for i in tmp:
-        print(i)
-
-
-print("\n\nFinal Join Ordering: ", final_ordering)
-state_vector.convert_join_ordering_to_alias(final_ordering)
-print("Final Join Ordering with Aliases: ", final_ordering)
-
-# Test Query Reconstruction
-# - feed a join-ordering and expect as return a fully constructed sql-query
-# - containing those explicit join-orderings
-
-
-print("\n\n\n\n------------------------\nConstructing the query...\n")
-constructed_query = db.construct_query(state_vector.query_ast, final_ordering, db.tables_attributes, state_vector.joined_attrs,
-                                       state_vector.alias_to_tables, state_vector.aliases)
-
-# constructed_query_ast = parse(constructed_query)
-# pp.pprint(constructed_query_ast)
-
-pp.pprint(constructed_query)
-print("------------------------------------------\n\n")
+#
+# # Actions followed by the agent
+# action_pairs = [[2, 1], [0, 1]]     # Specify a deep left join ordering
+#
+# print("\n\nSpecify a Join Ordering:")
+# join_ordering = db.tables.copy()
+# tmp = zip(range(len(db.tables)), join_ordering)
+# for i in tmp:
+#     print(i)
+# final_ordering = []
+#
+# for action_pair in action_pairs:
+#     print("\nJoin:", join_ordering[action_pair[0]], "⟕", join_ordering[action_pair[1]])
+#
+#     join_ordering[action_pair[0]] = [
+#         join_ordering[action_pair[0]],
+#         join_ordering[action_pair[1]],
+#     ]
+#
+#     final_ordering = join_ordering[action_pair[0]]
+#
+#     del join_ordering[action_pair[1]]
+#
+#     tmp = zip(range(len(db.tables)), join_ordering)
+#     for i in tmp:
+#         print(i)
+#
+#
+# print("\n\nFinal Join Ordering: ", final_ordering)
+# state_vector.convert_join_ordering_to_alias(final_ordering)
+# print("Final Join Ordering with Aliases: ", final_ordering)
+#
+# # Test Query Reconstruction
+# # - feed a join-ordering and expect as return a fully constructed sql-query
+# # - containing those explicit join-orderings
+#
+#
+# print("\n\n\n\n------------------------\nConstructing the query...\n")
+# constructed_query = db.construct_query(state_vector.query_ast, final_ordering, db.tables_attributes, state_vector.joined_attrs,
+#                                        state_vector.alias_to_tables, state_vector.aliases)
+#
+# # constructed_query_ast = parse(constructed_query)
+# # pp.pprint(constructed_query_ast)
+#
+# pp.pprint(constructed_query)
+# print("------------------------------------------\n\n")
 
 
 # # Names of the tables that are ***contained*** in the query
