@@ -118,7 +118,6 @@ def main():
         ],
         [
             dict(type="input", names=["selection_predicates"]),
-            dict(type="flatten"),
             dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="selection_predicates_emb"),
         ],

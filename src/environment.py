@@ -82,9 +82,8 @@ class ReJoin(Environment):
             type="int", num_actions=self.num_tables * self.num_tables
         )  # - self.num_tables ignore for now
 
-    @property
-    def is_terminal(self):
-        return self.step_curr == self.join_num
+    def is_terminal(self, possible_actions_len):
+        return possible_actions_len == 0
 
     def close(self):
         print("Close")
@@ -114,7 +113,7 @@ class ReJoin(Environment):
         self.episode_curr += 1
         # self.query = self.database.get_query_by_id(self.episode_curr)
         # self.query = self.database.get_query_by_id(1)
-        self.query = self.database.get_query_by_filename("1a")
+        self.query = self.database.get_query_by_filename("16a")
 
         # [[ci,akt], an]
         # self.query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
@@ -153,10 +152,13 @@ class ReJoin(Environment):
         # )
 
         self.step_curr += 1
-        # print("Step:", self.step_curr, " Join Num:", self.join_num)
+        print("Step:", self.step_curr, " Join Num:", self.join_num)
 
         # Get reward and process terminal & next state.
-        terminal = self.is_terminal
+        possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
+        print("Possible actions", possible_actions)
+
+        terminal = self.is_terminal(len(possible_actions))
 
         # self.pp.pprint(self.state["tree_structure"])
 
@@ -166,8 +168,6 @@ class ReJoin(Environment):
             reward = self.get_reward(final_ordering)
         else:
             reward = 0
-            possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
-            print("Possible actions", possible_actions)
 
             print("Pre-action:", action)
             action = action % len(possible_actions)  # workaround hack
@@ -212,7 +212,12 @@ class ReJoin(Environment):
 
                 for idx1, val1 in enumerate(states[i]):
                     for idx2, val2 in enumerate(states[j]):
-                        if val1 != 0 and val2 != 0 and jp[idx1][idx2] == 1:
+                        if (
+                            val1 != 0
+                            and val2 != 0
+                            and jp[idx1][idx2] == 1
+                            and (i, j) not in actions
+                        ):
                             actions.append((i, j))
                             actions.append(
                                 (j, i)

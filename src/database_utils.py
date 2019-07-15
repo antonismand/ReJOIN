@@ -63,28 +63,25 @@ def construct_stmt(stmt, operator_map, tables_to_alias, alias):
 
     if key == "and" or key == "or":  # Need to go deeper
 
-        return (
-            "( "
-            + where_and_or(stmt, operator_map, tables_to_alias, alias)
-            + " )"
-        )
+        return "( " + where_and_or(stmt, operator_map, tables_to_alias, alias) + " )"
     else:
         if key == "between":
             rvalue = str(stmt[key][1]) + " AND " + str(stmt[key][2])
 
-        elif isinstance(stmt[key][1], dict):      # Dict (Naively assuming it's a literal)
+        elif isinstance(stmt[key][1], dict):  # Dict (Naively assuming it's a literal)
 
             lit = stmt[key][1]["literal"]
 
             if isinstance(lit, list):
                 rvalue = " ( "
-                for i in range(len(lit)-1):
+                for i in range(len(lit) - 1):
                     rvalue = rvalue + "'" + lit[i] + "', "
-                rvalue = rvalue + "'" + lit[len(lit)-1] + "' ) "
+                rvalue = rvalue + "'" + lit[len(lit) - 1] + "' ) "
 
-            else: rvalue = "'" + lit + "'"
+            else:
+                rvalue = "'" + lit + "'"
 
-        elif isinstance(stmt[key][1], int):     # Integer
+        elif isinstance(stmt[key][1], int):  # Integer
             rvalue = str(stmt[key][1])
 
         else:
@@ -107,9 +104,13 @@ def where_and_or(where_ast, operator_map, tables_to_alias, alias):
         where_and = []
         for v in and_stmt:
             if not (
-                    "eq" in v and isinstance(v["eq"][0], str) and isinstance(v["eq"][1], str)
+                "eq" in v
+                and isinstance(v["eq"][0], str)
+                and isinstance(v["eq"][1], str)
             ):  # if not a joining
-                where_and.append(construct_stmt(v, operator_map, tables_to_alias, alias))
+                where_and.append(
+                    construct_stmt(v, operator_map, tables_to_alias, alias)
+                )
 
         for i in range(len(where_and) - 1):
             where_and_clause += where_and[i] + " AND \n"
@@ -121,7 +122,9 @@ def where_and_or(where_ast, operator_map, tables_to_alias, alias):
         where_or = []
         for v in or_stmt:
             if not (
-                    "eq" in v and isinstance(v["eq"][0], str) and isinstance(v["eq"][1], str)
+                "eq" in v
+                and isinstance(v["eq"][0], str)
+                and isinstance(v["eq"][1], str)
             ):  # if not a joining
                 where_or.append(construct_stmt(v, operator_map, tables_to_alias, alias))
 
@@ -140,10 +143,12 @@ def get_where_clause(query_ast, tables_to_alias, alias):
         "eq": "=",
         "gt": ">",
         "lt": "<",
+        "gte": ">=",
+        "lte": "<=",
         "like": "LIKE",
         "nlike": "NOT LIKE",
         "in": "IN",
-        "between": "BETWEEN"
+        "between": "BETWEEN",
     }  # to be filled with other possible values
 
     where_ast = query_ast["where"]
