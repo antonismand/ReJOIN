@@ -15,8 +15,8 @@ class ReJoin(Environment):
         self.pp = pprint.PrettyPrinter(indent=2)
 
         self.database = database
-        self.tables = database.tables
-        self.num_tables = len(database.tables)
+        self.relations = database.relations
+        self.num_relations = len(database.relations)
 
         self.attributes = database.attributes
         self.num_attrs = len(database.attributes)
@@ -29,11 +29,9 @@ class ReJoin(Environment):
 
         self.query = None
         self.state_vector = None
-        self.join_num = None
         self.state = None
 
-        # self.tables_joined = []
-        self.join_ordering = self.tables.copy()
+        self.join_ordering = self.relations.copy()
 
     def __str__(self):
         return "ReJOIN"
@@ -53,13 +51,12 @@ class ReJoin(Environment):
 
         states = dict()
         states["tree_structure"] = dict(
-            shape=(self.num_tables, self.num_tables), type="float"
+            shape=(self.num_relations * self.num_relations), type="float"
         )
         states["join_predicates"] = dict(
-            shape=(self.num_tables, self.num_tables), type="float"
+            shape=(self.num_relations * self.num_relations), type="float"
         )
         states["selection_predicates"] = dict(shape=self.num_attrs, type="float")
-        # print(states)
         return states
 
     @property
@@ -77,10 +74,7 @@ class ReJoin(Environment):
                 - num_actions: integer (required if type == 'int').
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
-        # Discrete value {1, 2,.., n} where n = (num_relations*num_relations)-num_relations
-        return dict(
-            type="int", num_actions=self.num_tables * self.num_tables
-        )  # - self.num_tables ignore for now
+        return dict(type="int", num_actions=self.num_relations * self.num_relations)  # - self.num_relations
 
     def is_terminal(self, possible_actions_len):
         return possible_actions_len == 0
@@ -96,8 +90,6 @@ class ReJoin(Environment):
             seed (int): The seed to use for initializing the pseudo-random number generator (default=epoch time in sec).
         Returns: The actual seed (int) used OR None if Environment did not override this method (no seeding supported).
         """
-        print("\n\nSEED\n\n")
-
         return np.random.RandomState(seed)
 
     def reset(self):
@@ -114,22 +106,12 @@ class ReJoin(Environment):
         # self.query = self.database.get_query_by_id(self.episode_curr)
         # self.query = self.database.get_query_by_id(1)
         self.query = self.database.get_query_by_filename("16a")
-
-        # [[ci,akt], an]
-        # self.query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS akt, aka_name AS an " \
-        # "WHERE ci.movie_id=akt.movie_id AND ci.person_id=an.person_id LIMIT 5;"
-
-        self.state_vector = StateVector(self.query, self.tables, self.attributes)
-        self.join_num = self.state_vector.join_num
+        self.state_vector = StateVector(self.query, self.database.tables, self.relations, self.attributes)
         self.state = self.state_vector.vectorize()
         self.memory_actions = []
         self.step_curr = 0
 
-        # self.join_ordering = self.tables.copy()
-
         # self.pp.pprint(self.state_vector.query_ast)
-        # print(state.join_predicates)
-        # print(state.selection_predicates)
         return self.state
 
     def execute(self, action):
@@ -144,15 +126,18 @@ class ReJoin(Environment):
         """
 
         # Re-shape in order to manipulate the state
-        # self.state["join_predicates"] = self.state["join_predicates"].reshape(
-        #     self.num_tables, self.num_tables
-        # )
-        # self.state["tree_structure"] = self.state["tree_structure"].reshape(
-        #     self.num_tables, self.num_tables
-        # )
+        self.state["join_predicates"] = self.state["join_predicates"].reshape(
+            self.num_relations, self.num_relations
+        )
+        self.state["tree_structure"] = self.state["tree_structure"].reshape(
+            self.num_relations, self.num_relations
+        )
 
         self.step_curr += 1
-        print("Step:", self.step_curr, " Join Num:", self.join_num)
+        print("Step:", self.step_curr)
+
+        possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
+        print("Possible actions", possible_actions)
 
         # Get reward and process terminal & next state.
         possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
@@ -179,8 +164,8 @@ class ReJoin(Environment):
             self.memory_actions.append(action_pair)
             # print("Memory_Actions:", self.memory_actions)
 
-        # self.state["join_predicates"] = self.state["join_predicates"].flatten()
-        # self.state["tree_structure"] = self.state["tree_structure"].flatten()
+        self.state["join_predicates"] = self.state["join_predicates"].flatten()
+        self.state["tree_structure"] = self.state["tree_structure"].flatten()
 
         return self.state, terminal, reward
 
@@ -190,9 +175,9 @@ class ReJoin(Environment):
         constructed_query = self.database.construct_query(
             self.state_vector.query_ast,
             final_ordering,
-            self.database.tables_attributes,
+            self.database.relations_attributes,
             self.state_vector.joined_attrs,
-            self.state_vector.alias_to_tables,
+            self.state_vector.alias_to_relations,
             self.state_vector.aliases,
         )
         cost = self.database.get_reward(constructed_query, self.phase)
@@ -207,8 +192,8 @@ class ReJoin(Environment):
         states = self.state["tree_structure"]
         actions = []
 
-        for i in range(0, self.num_tables):
-            for j in range(i + 1, self.num_tables):
+        for i in range(0, self.num_relations):
+            for j in range(i + 1, self.num_relations):
 
                 for idx1, val1 in enumerate(states[i]):
                     for idx2, val2 in enumerate(states[j]):
@@ -219,9 +204,7 @@ class ReJoin(Environment):
                             and (i, j) not in actions
                         ):
                             actions.append((i, j))
-                            actions.append(
-                                (j, i)
-                            )  # ToDo:  Examine if this is redundant info during training
+                            actions.append((j, i))
         return actions
 
     def _set_next_state(self, action):
@@ -235,7 +218,7 @@ class ReJoin(Environment):
         states = self.state["tree_structure"]
         self._join_subtrees(states[action[0]], states[action[1]])
         states = np.delete(states, action[1], 0)
-        padding = [0] * self.num_tables
+        padding = [0] * self.num_relations
         states = np.vstack((states, [padding]))
         self.state["tree_structure"] = states
 
@@ -250,7 +233,7 @@ class ReJoin(Environment):
         # [0  0  1  0  0] =
         # [0 .5 .5  0  0]
 
-        for i in range(0, self.num_tables):
+        for i in range(0, self.num_relations):
             if s1[i] != 0:
                 s1[i] = s1[i] / 2
             elif s2[i] != 0:
@@ -258,8 +241,8 @@ class ReJoin(Environment):
 
     def _get_final_ordering(self):
 
-        join_ordering = self.database.tables.copy()
-        tmp = zip(range(self.num_tables), join_ordering)
+        join_ordering = self.database.relations.copy()
+        # tmp = zip(range(self.num_relations), join_ordering)
         # for i in tmp:
         #     print(i)
         final_ordering = []
@@ -279,16 +262,13 @@ class ReJoin(Environment):
 
             final_ordering = join_ordering[
                 action_pair[0]
-            ]  # Is it (min(action_pair[0], action_pair[1])]) ?
+            ]
 
             del join_ordering[action_pair[1]]
 
-            tmp = zip(range(self.num_tables), join_ordering)
+            # tmp = zip(range(self.num_relations), join_ordering)
             # for i in tmp:
             #     print(i)
 
         print("\n\nFinal Join Ordering: ", final_ordering)
-        self.state_vector.convert_join_ordering_to_alias(final_ordering)
-        # print("Final Join Ordering with Aliases: ", final_ordering)
-
         return final_ordering

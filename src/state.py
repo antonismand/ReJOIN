@@ -1,37 +1,29 @@
 import numpy as np
 import pprint
+# import moz_sql_parser
 
 
 class StateVector:
-    def __init__(self, query, tables, attributes):
+    def __init__(self, query, original_tables, relations, attributes):
 
         self.pp = pprint.PrettyPrinter(indent=2)
 
         self.query = query
         # print(query)
-        self.tables = tables
+        self.original_tables = original_tables
+        self.relations = relations
         self.attributes = attributes
-        self.query_ast = query["moz"]  # remove?
-        self.join_num = 0
+        self.query_ast = query["moz"]  # moz_sql_parser.parse(query)
 
-        # Maps from original-names to aliases and vice-versa
         self.aliases = {}
         for v in self.query_ast["from"]:
-            self.aliases[v["name"]] = (
-                self.tables.index(v["value"]),
-                v["value"],
-            )  # {'alias' : (0,'table name')}
-
-        self.original_names_to_aliases = {}
-        for n in self.aliases:
-            self.original_names_to_aliases[self.aliases[n][1]] = n
+            self.aliases[v["name"]] = v["value"]
 
         # Help structures for query reconstruction
         self.joined_attrs = {}
-        self.query_tables = set()
-        self.alias_to_tables = {}
+        self.alias_to_relations = {}
         for alias in self.aliases:
-            self.alias_to_tables[alias] = [alias]
+            self.alias_to_relations[alias] = [alias]
 
         # State Representation (to be fed in the NN)
         self.tree_structure = self.extract_tree_structure()
@@ -54,16 +46,15 @@ class StateVector:
 
                 self.joined_attrs[(table_left, table_right)] = (attr1, attr2)
                 self.joined_attrs[(table_right, table_left)] = (attr2, attr1)
-                self.query_tables.update([table_left, table_right])
 
                 results.append((table_left, table_right))
 
-        tables_num = len(self.tables)
-        graph = [[0 for x in range(tables_num)] for y in range(tables_num)]
+        relations_num = len(self.relations)
+        graph = [[0 for x in range(relations_num)] for y in range(relations_num)]
 
         for t1, t2 in results:
-            graph[self.aliases[t1][0]][self.aliases[t1][0]] = 1
-            graph[self.aliases[t2][0]][self.aliases[t2][0]] = 1
+            graph[self.relations.index(t1)][self.relations.index(t1)] = 1
+            graph[self.relations.index(t2)][self.relations.index(t2)] = 1
 
         return graph
 
@@ -78,13 +69,12 @@ class StateVector:
             ):
                 results.append((v["eq"][0].split(".")[0], v["eq"][1].split(".")[0]))
 
-        tables_num = len(self.tables)
-        graph = [[0 for x in range(tables_num)] for y in range(tables_num)]
+        relations_num = len(self.relations)
+        graph = [[0 for x in range(relations_num)] for y in range(relations_num)]
 
         for t1, t2 in results:
-            graph[self.aliases[t1][0]][self.aliases[t2][0]] = 1
-            graph[self.aliases[t2][0]][self.aliases[t1][0]] = 1
-            self.join_num += 1
+            graph[self.relations.index(t1)][self.relations.index(t2)] = 1
+            graph[self.relations.index(t2)][self.relations.index(t1)] = 1
         return graph
 
     def extract_selection_predicates(self):
@@ -94,15 +84,14 @@ class StateVector:
 
         for v in self.query_ast["where"]["and"]:
             for k in v:
-                if k in {"eq", "neq", "le", "ge"}:  # examine queries to cover all cases
+                if k in {"eq", "neq", "lt", "gt", "lte", "gte"}:  # examine queries to cover all cases
                     for i in range(2):
                         if isinstance(v[k][i], str):
-                            table = v[k][i].split(".")[0]
+                            relation = v[k][i].split(".")[0]
                             attr = v[k][i].split(".")[1]
-                            results.append(self.aliases[table][1] + "." + attr)
+                            results.append(relation + "." + attr)
 
         join_predicate_vector = [0 for x in range(attrs_num)]
-        # print(attrs_num)
         for x in results:
             join_predicate_vector[self.attributes.index(x)] = 1
 
@@ -115,13 +104,6 @@ class StateVector:
         states["selection_predicates"] = np.array(self.selection_predicates)
 
         return states
-
-    def convert_join_ordering_to_alias(self, join_ordering):
-        for i in range(2):
-            if isinstance(join_ordering[i], str):
-                join_ordering[i] = self.original_names_to_aliases[join_ordering[i]]
-            else:
-                self.convert_join_ordering_to_alias(join_ordering[i])
 
     def print_state(self):  # Print for debugging
         print("\nTree-Structure:\n")
@@ -137,17 +119,12 @@ class StateVector:
     def print_joined_attrs(self):
         self.pp.pprint(self.joined_attrs)
 
-    def print_query_tables(self):
-        self.pp.pprint(self.query_tables)
-
     def print_query(self):
         self.pp.pprint(self.query_ast)
 
     def print_aliases(self):
         self.pp.pprint(self.aliases)
 
-    def print_alias_to_tables(self):
-        self.pp.pprint(self.alias_to_tables)
+    def print_alias_to_relations(self):
+        self.pp.pprint(self.alias_to_relations)
 
-    def print_original_names_to_aliases(self):
-        self.pp.pprint(self.original_names_to_aliases)

@@ -6,51 +6,58 @@ import src.database_utils as utils
 
 class Database:
     def __init__(self):
-        self.conn = self.connect()
-        self.counter = 0
-        self.aliases = {}  # unused?
-
-        self.tables_attributes = self.get_tables_attributes()  # to remove
-        self.tables = list(self.tables_attributes.keys())  # to remove
-        self.relations, self.relation_attributes = self.get_relations_attributes()
-        self.attributes = []  # to replace with attributes2
-        for k in self.tables_attributes:
-            self.attributes = self.attributes + [
-                k + "." + v for v in self.tables_attributes[k]
-            ]
 
         self.pp = pprint.PrettyPrinter(indent=2)
+
+        self.conn = self.connect()
+        self.counter = 0
+        self.aliases = {}
+
+        # Build database related info
+        # - tables,
+        # - relations (original-tables + aliases),
+        # - {relation : attributes}
+        # - attributes
+
+        self.tables, self.relations, self.relations_attributes = self.get_relations_attributes()
+        self.attributes = []
+        for k in self.relations_attributes:
+            self.attributes = self.attributes + [
+                k + "." + v for v in self.relations_attributes[k]
+            ]
+
+        self.pp.pprint(self.relations)
 
     def connect(self):
         try:
             conn_string = (
-                "host="
-                + creds.PGHOST
-                + " port="
-                + "5432"
-                + " dbname="
-                + creds.PGDATABASE
-                + " user="
-                + creds.PGUSER
-                + " password="
-                + creds.PGPASSWORD
+                    "host="
+                    + creds.PGHOST
+                    + " port="
+                    + "5432"
+                    + " dbname="
+                    + creds.PGDATABASE
+                    + " user="
+                    + creds.PGUSER
+                    + " password="
+                    + creds.PGPASSWORD
             )
             conn = psycopg2.connect(conn_string)
             return conn
         except (Exception, psycopg2.Error) as error:
             print("Error connecting")
 
-    def get_tables_attributes(self):
+    def get_relations_attributes(self):
         """
-        Returns tables and their attributes
+        Returns relations and their attributes
 
-        Used by get_relations_attributes
+        Uses tables/attributes from the database but also aliases found on the dataset's queries
 
         Args:
             None
-
         Returns:
-            tables_attributes: dict {'table1':['attr1','attr2',..], .. }
+            relations: list ['alias1','alias2',..]
+            relations_attributes: dict {'alias1':['attr1','attr2',..], .. }
 
         """
 
@@ -74,23 +81,8 @@ class Database:
             else:
                 tables_attributes[table] = [attribute]
 
-        return tables_attributes
+        tables = list(tables_attributes.keys())
 
-    def get_relations_attributes(self):
-        """
-        Returns relations and their attributes
-
-        Uses tables/attributes from the database but also aliases found on the dataset's queries
-
-        Args:
-            None
-        Returns:
-            relations: list ['alias1','alias2',..]
-            relations_attributes: dict {'alias1':['attr1','attr2',..], .. }
-
-        """
-
-        tables_attributes = self.get_tables_attributes()
         relations_attributes = {}
         relations = []
         for i in range(1, 112):
@@ -99,15 +91,11 @@ class Database:
                 if r["name"] not in relations:
                     relations.append(r["name"])
                     relations_attributes[r["name"]] = tables_attributes[r["value"]]
-        return relations, relations_attributes
-
-    def print_tables_attrs(self):
-        pp = pprint.PrettyPrinter(indent=2)
-        pp.pprint(self.tables_attributes)
+        return tables, relations, relations_attributes
 
     def print_relations_attrs(self):
         pp = pprint.PrettyPrinter(indent=2)
-        pp.pprint(self.relation_attributes)
+        pp.pprint(self.relations_attributes)
 
     def get_query_by_id(self, id):
         cursor = self.conn.cursor()
@@ -164,31 +152,29 @@ class Database:
         except ValueError:
             return False
 
-    def construct_query(
-        self, query_ast, join_ordering, attrs, joined_attrs, alias_to_tables, aliases
-    ):
+    def construct_query(self, query_ast, join_ordering, attrs, joined_attrs, alias_to_relations, aliases):
 
-        tables_to_alias = {}
+        relations_to_alias = {}
 
         # print(join_ordering)
         subq, alias = self.recursive_construct(
             join_ordering,
             attrs,
             joined_attrs,
-            tables_to_alias,
-            alias_to_tables,
+            relations_to_alias,
+            alias_to_relations,
             aliases,
         )
 
-        select_clause = utils.get_select_clause(query_ast, tables_to_alias, alias)
-        where_clause = utils.get_where_clause(query_ast, tables_to_alias, alias)
+        select_clause = utils.get_select_clause(query_ast, relations_to_alias, alias)
+        where_clause = utils.get_where_clause(query_ast, relations_to_alias, alias)
 
         limit = ""
         if "limit" in query_ast:
             limit = " LIMIT " + str(query_ast["limit"])
 
-        # print("\n\nTables to aliases: ")
-        # self.print_dict(tables_to_alias)
+        # print("\n\nRelations to aliases: ")
+        # self.print_dict(relations_to_alias)
 
         query = select_clause + " FROM " + subq + where_clause + limit
 
@@ -196,28 +182,26 @@ class Database:
         self.counter = 0
         return query
 
-    def recursive_construct(
-        self, subtree, attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
-    ):
+    def recursive_construct(self, subtree, attrs, joined_attrs, relations_to_alias, alias_to_relations, aliases):
 
         if isinstance(subtree, str):
             return subtree, subtree
 
         left, left_alias = self.recursive_construct(
-            subtree[0], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
+            subtree[0], attrs, joined_attrs, relations_to_alias, alias_to_relations, aliases
         )
         right, right_alias = self.recursive_construct(
-            subtree[1], attrs, joined_attrs, tables_to_alias, alias_to_tables, aliases
+            subtree[1], attrs, joined_attrs, relations_to_alias, alias_to_relations, aliases
         )
 
         new_alias = "J" + str(self.counter)
-        tables_to_alias[left_alias] = new_alias
-        tables_to_alias[right_alias] = new_alias
+        relations_to_alias[left_alias] = new_alias
+        relations_to_alias[right_alias] = new_alias
         self.counter += 1
 
-        # print("\n\nAliases to tables: ")
-        alias_to_tables[new_alias] = [left_alias, right_alias]
-        # self.print_dict(alias_to_tables)
+        print("\n\nAliases to relations: ")
+        alias_to_relations[new_alias] = [left_alias, right_alias]
+        self.print_dict(alias_to_relations)
 
         # print("\n\nJoining subtrees: " + left_alias + " ⟕ " + right_alias)
 
@@ -227,31 +211,31 @@ class Database:
         # print("Attrs: " + attr1 + " , " + attr2)
 
         if left == left_alias:
-            left = aliases[left][1] + " AS " + left
+            left = aliases[left] + " AS " + left
         if right == right_alias:
-            right = aliases[right][1] + " AS " + right
+            right = aliases[right] + " AS " + right
 
         clause = self.select_clause(
-            alias_to_tables, left_alias, right_alias, attrs, aliases
+            alias_to_relations, left_alias, right_alias, attrs, aliases
         )
 
         subquery = (
-            "( SELECT "
-            + clause
-            + " FROM "
-            + left
-            + " JOIN "
-            + right
-            + " on "
-            + left_alias
-            + "."
-            + attr1
-            + " = "
-            + right_alias
-            + "."
-            + attr2
-            + ") "
-            + new_alias
+                "( SELECT "
+                + clause
+                + " FROM "
+                + left
+                + " JOIN "
+                + right
+                + " on "
+                + left_alias
+                + "."
+                + attr1
+                + " = "
+                + right_alias
+                + "."
+                + attr2
+                + ") "
+                + new_alias
         )
 
         self.update_joined_attrs((left_alias, right_alias), new_alias, joined_attrs)
@@ -289,19 +273,19 @@ class Database:
                 del joined_attrs[(t1, t2)]
                 joined_attrs[(rel1, rel2)] = (attr1, attr2)
 
-    def select_clause(self, alias_to_tables, left_alias, right_alias, attrs, aliases):
+    def select_clause(self, alias_to_relations, left_alias, right_alias, attrs, aliases):
 
         # print("\n\nSelect Clause:\n")
 
         clause = []
-        # tables_left = alias_to_tables[left_alias] ; tables_right = alias_to_tables[right_alias]
-        # print(tables_left); print(tables_right)
+        # relations_left = alias_to_relations[left_alias] ; relations_right = alias_to_relations[right_alias]
+        # print(relations_left); print(relations_right)
 
         self.recursive_select_clause(
-            clause, "", alias_to_tables, left_alias, attrs, left_alias, aliases
+            clause, "", alias_to_relations, left_alias, attrs, left_alias, aliases
         )
         self.recursive_select_clause(
-            clause, "", alias_to_tables, right_alias, attrs, right_alias, aliases
+            clause, "", alias_to_relations, right_alias, attrs, right_alias, aliases
         )
 
         select_clause = ""
@@ -312,20 +296,18 @@ class Database:
 
         return select_clause
 
-    def recursive_select_clause(
-        self, clause, path, alias_to_tables, alias, attrs, base_alias, aliases
-    ):
+    def recursive_select_clause(self, clause, path, alias_to_relations, alias, attrs, base_alias, aliases):
 
         # print(alias)
-        rels = alias_to_tables[alias]
+        rels = alias_to_relations[alias]
         if len(rels) > 1:
             for rel in rels:
                 path1 = path + rel + "_"
                 self.recursive_select_clause(
-                    clause, path1, alias_to_tables, rel, attrs, base_alias, aliases
+                    clause, path1, alias_to_relations, rel, attrs, base_alias, aliases
                 )
         else:
-            attributes = attrs[aliases[rels[0]][1]]
+            attributes = attrs[rels[0]]
             for attr in attributes:
                 tmp = path + attr
                 clause.append(base_alias + "." + tmp + " AS " + base_alias + "_" + tmp)
