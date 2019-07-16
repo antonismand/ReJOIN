@@ -180,7 +180,9 @@ def main():
             )
         return True
 
-    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
+    logger.info(
+        "Starting {agent} for Environment '{env}'".format(agent=agent, env=environment)
+    )
 
     # Start Training
     runner.run(

@@ -1,17 +1,17 @@
-def get_alias(attr, relations_to_alias, alias):
+def get_alias(attr, tables_to_alias, alias):
 
     tmp = attr.split(".")
     relname = tmp[0]
     attrname = tmp[1]
 
-    while relname in relations_to_alias:
+    while relname in tables_to_alias:
         attrname = relname + "_" + attrname
-        relname = relations_to_alias[relname]
+        relname = tables_to_alias[relname]
 
     return alias + "." + attrname
 
 
-def get_select_clause(query_ast, relations_to_alias, alias):
+def get_select_clause(query_ast, tables_to_alias, alias):
 
     # Construct SELECT clause
 
@@ -36,11 +36,11 @@ def get_select_clause(query_ast, relations_to_alias, alias):
             val = (
                 select_operator_map[key]
                 + "("
-                + get_alias(val[key], relations_to_alias, alias)
+                + get_alias(val[key], tables_to_alias, alias)
                 + ")"
             )
         else:
-            val = get_alias(val, relations_to_alias, alias)
+            val = get_alias(val, tables_to_alias, alias)
 
         if "name" in v:
             name = " AS " + v["name"]
@@ -56,18 +56,14 @@ def get_select_clause(query_ast, relations_to_alias, alias):
     return select_clause
 
 
-def construct_stmt(stmt, operator_map, relations_to_alias, alias):
+def construct_stmt(stmt, operator_map, tables_to_alias, alias):
 
     # print(stmt)
     key = list(stmt.keys())[0]
 
     if key == "and" or key == "or":  # Need to go deeper
 
-        return (
-            "( "
-            + where_and_or(stmt, operator_map, relations_to_alias, alias)
-            + " )"
-        )
+        return "( " + where_and_or(stmt, operator_map, tables_to_alias, alias) + " )"
     else:
         if key == "between":
             rvalue = str(stmt[key][1]) + " AND " + str(stmt[key][2])
@@ -82,9 +78,6 @@ def construct_stmt(stmt, operator_map, relations_to_alias, alias):
                     rvalue = rvalue + "'" + lit[i] + "', "
                 rvalue = rvalue + "'" + lit[len(lit) - 1] + "' ) "
 
-            elif key == "in":
-                rvalue = "( '" + lit + "' )"
-
             else:
                 rvalue = "'" + lit + "'"
 
@@ -92,10 +85,10 @@ def construct_stmt(stmt, operator_map, relations_to_alias, alias):
             rvalue = str(stmt[key][1])
 
         else:
-            rvalue = get_alias(stmt[key][1], relations_to_alias, alias)
+            rvalue = get_alias(stmt[key][1], tables_to_alias, alias)
 
         return (
-            get_alias(stmt[key][0], relations_to_alias, alias)
+            get_alias(stmt[key][0], tables_to_alias, alias)
             + " "
             + operator_map[key]
             + " "
@@ -103,7 +96,7 @@ def construct_stmt(stmt, operator_map, relations_to_alias, alias):
         )
 
 
-def where_and_or(where_ast, operator_map, relations_to_alias, alias):
+def where_and_or(where_ast, operator_map, tables_to_alias, alias):
 
     where_and_clause = ""
     if "and" in where_ast:
@@ -115,13 +108,13 @@ def where_and_or(where_ast, operator_map, relations_to_alias, alias):
                 and isinstance(v["eq"][0], str)
                 and isinstance(v["eq"][1], str)
             ):  # if not a joining
-                where_and.append(construct_stmt(v, operator_map, relations_to_alias, alias))
+                where_and.append(
+                    construct_stmt(v, operator_map, tables_to_alias, alias)
+                )
 
-        size = len(where_and)
-        if size > 0:
-            for i in range(size - 1):
-                where_and_clause += where_and[i] + " AND \n"
-            where_and_clause += where_and[size - 1]
+        for i in range(len(where_and) - 1):
+            where_and_clause += where_and[i] + " AND \n"
+        where_and_clause += where_and[len(where_and) - 1]
 
     where_or_clause = ""
     if "or" in where_ast:
@@ -133,18 +126,16 @@ def where_and_or(where_ast, operator_map, relations_to_alias, alias):
                 and isinstance(v["eq"][0], str)
                 and isinstance(v["eq"][1], str)
             ):  # if not a joining
-                where_or.append(construct_stmt(v, operator_map, relations_to_alias, alias))
+                where_or.append(construct_stmt(v, operator_map, tables_to_alias, alias))
 
-        size = len(where_or)
-        if size > 0:
-            for i in range(size - 1):
-                where_or_clause += where_or[i] + " OR \n"
-            where_or_clause += where_or[size - 1]
+        for i in range(len(where_or) - 1):
+            where_or_clause += where_or[i] + " OR \n"
+        where_or_clause += where_or[len(where_or) - 1]
 
     return where_and_clause + where_or_clause
 
 
-def get_where_clause(query_ast, relations_to_alias, alias):
+def get_where_clause(query_ast, tables_to_alias, alias):
 
     # Construct WHERE clause
 
@@ -157,11 +148,11 @@ def get_where_clause(query_ast, relations_to_alias, alias):
         "like": "LIKE",
         "nlike": "NOT LIKE",
         "in": "IN",
-        "between": "BETWEEN"
+        "between": "BETWEEN",
     }  # to be filled with other possible values
 
     where_ast = query_ast["where"]
-    where_clause = where_and_or(where_ast, operator_map, relations_to_alias, alias)
+    where_clause = where_and_or(where_ast, operator_map, tables_to_alias, alias)
 
     if where_clause != "":
         return " \nWHERE \n" + where_clause
