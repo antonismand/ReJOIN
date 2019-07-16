@@ -136,9 +136,6 @@ class ReJoin(Environment):
         self.step_curr += 1
         print("Step:", self.step_curr)
 
-        possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
-        print("Possible actions", possible_actions)
-
         # Get reward and process terminal & next state.
         possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
         print("Possible actions", possible_actions)
@@ -209,7 +206,6 @@ class ReJoin(Environment):
 
     def _set_next_state(self, action):
 
-        # print("\n\nGET NEXT STATE\n\n")
         np.set_printoptions(linewidth=150)
         # print("Current State:\n")
         # print(self.state["tree_structure"])
