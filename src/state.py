@@ -99,8 +99,8 @@ class StateVector:
 
     def vectorize(self):
         states = dict()
-        states["tree_structure"] = np.array(self.tree_structure, dtype=float)
-        states["join_predicates"] = np.array(self.join_predicates)
+        states["tree_structure"] = np.array(self.tree_structure, dtype=float).flatten()
+        states["join_predicates"] = np.array(self.join_predicates).flatten()
         states["selection_predicates"] = np.array(self.selection_predicates)
 
         return states
