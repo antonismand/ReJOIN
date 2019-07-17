@@ -8,8 +8,10 @@ A "main" created for testing purposes
 """
 
 # [[ci,at], an]
-query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS at, aka_name AS an " \
-        "WHERE ci.movie_id=at.movie_id AND ci.person_id=an.person_id LIMIT 5;"
+query = (
+    "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS at, aka_name AS an "
+    "WHERE ci.movie_id=at.movie_id AND ci.person_id=an.person_id LIMIT 5;"
+)
 
 # query = '''
 # SELECT MIN(mc.note) AS production_note,
@@ -97,8 +99,14 @@ for action_pair in action_pairs:
 print("\n\nFinal Join Ordering: ", final_ordering)
 
 print("\n\n\n\n------------------------\nConstructing the query...\n")
-constructed_query = db.construct_query(state_vector.query_ast, final_ordering, db.relations_attributes, state_vector.joined_attrs,
-                                       state_vector.alias_to_relations, state_vector.aliases)
+constructed_query = db.construct_query(
+    state_vector.query_ast,
+    final_ordering,
+    db.relations_attributes,
+    state_vector.joined_attrs,
+    state_vector.alias_to_relations,
+    state_vector.aliases,
+)
 
 # constructed_query_ast = parse(constructed_query)
 # pp.pprint(constructed_query_ast)
