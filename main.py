@@ -9,6 +9,7 @@ from src.environment import ReJoin
 from src.database import Database
 from tensorforce.agents import PPOAgent
 import matplotlib.pyplot as plt
+import numpy as np
 
 # from src.distribution import CustomCategorical
 
@@ -43,7 +44,7 @@ def make_args_parser():
         default=0.0,
     )
     parser.add_argument(
-        "-e", "--episodes", type=int, default=500, help="Number of episodes"
+        "-e", "--episodes", type=int, default=10, help="Number of episodes"
     )
     parser.add_argument(
         "-g",
@@ -59,7 +60,7 @@ def make_args_parser():
         default=20,
         help="Maximum number of timesteps per episode",
     )
-    parser.add_argument("-q", "--query", default="", help="Run specific query")
+    parser.add_argument("-q", "--query", default="7b", help="Run specific query")
     parser.add_argument("-s", "--save", help="Save agent to this dir")
     parser.add_argument(
         "-se",
@@ -95,7 +96,8 @@ def main():
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
     # Initialize environment (tensorforce's template)
-    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups)
+    memory_costs = {}
+    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups, memory_costs )
 
     if args.agent_config is not None:
         with open(args.agent_config, "r") as fp:
@@ -116,18 +118,18 @@ def main():
         [
             dict(type="input", names=["tree_structure"]),
             # dict(type="flatten"),
-            # dict(type="dense", size=dims, activation="relu"),
+            dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="tree_structure_emb"),
         ],
         [
             dict(type="input", names=["join_predicates"]),
             # dict(type="flatten"),
-            # dict(type="dense", size=dims, activation="relu"),
+            dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="join_predicates_emb"),
         ],
         [
             dict(type="input", names=["selection_predicates"]),
-            # dict(type="dense", size=dims, activation="relu"),
+            dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="selection_predicates_emb"),
         ],
         [
@@ -151,8 +153,9 @@ def main():
         states=environment.states,
         actions=environment.actions,
         network=network_spec,
-        # step_optimizer=dict(type="adam", learning_rate=1e-3),
-        update_mode=dict(units="episodes", batch_size=5, frequency=2),
+        step_optimizer=dict(type="adam", learning_rate=1e-3),
+        update_mode=dict(units="episodes", batch_size=32, frequency=4),
+        memory=dict(type='replay', include_next_states=False, capacity=10000),
         summarizer=dict(
             directory="./board",
             steps=50,
@@ -162,11 +165,16 @@ def main():
                 "regularization",
                 "inputs",
                 "losses",
-                "variables",
-            ],
+                "variables"
+            ]
         )
         # distributions=dict(action=dict(type=CustomCategorical)),
-    )
+        # exploration = dict(
+            # type='ornstein_uhlenbeck',
+            # sigma=0.3,
+            # mu=0.0,
+            # theta=0.15)
+        )
 
     # agent = Agent.from_spec(
     #     spec=agent_config,
@@ -236,6 +244,31 @@ def main():
     plt.figure(2)
     plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
+    # Plot recorded costs over all episodes
+    print(memory_costs)
+    for i, key in enumerate(memory_costs):
+        plt.figure(i+3)
+
+        q = db.get_query_by_filename(key.split(".")[0])
+        postgres_estimate = db.optimizer_cost(q["query"], force_order=False)
+        costs = np.array(memory_costs[key])
+        max_val = max(costs)
+        min_val = min(costs)
+        t = np.arange(args.episodes)
+        plt.xlabel("episode")
+        plt.ylabel("cost")
+        plt.title(key)
+        plt.scatter(t, costs, c="g", alpha=0.5, marker=r'$\ast$',
+                    label="Cost")
+        plt.legend(loc='upper right')
+        plt.scatter(0, [min_val], c="r", alpha=1, marker=r'$\heartsuit$', s=200,
+                    label="min cost observed=" + str(min_val))
+        plt.scatter(0, [max_val], c="b", alpha=1, marker=r'$\times$', s=200,
+                    label="max cost observed=" + str(max_val))
+        plt.legend(loc='upper right')
+        plt.scatter(0, [postgres_estimate], c="c", alpha=1, marker=r'$\star$', s=200,
+                    label="postgreSQL estimate=" + str(postgres_estimate))
+        plt.legend(loc='upper right')
     plt.show(block=True)
     db.close()
 

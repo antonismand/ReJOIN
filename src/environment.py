@@ -11,7 +11,7 @@ import math
 
 
 class ReJoin(Environment):
-    def __init__(self, database, phase, query_to_run, total_episodes, total_groups):
+    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs):
         self.query_to_run = query_to_run
         self.pp = pprint.PrettyPrinter(indent=2)
 
@@ -27,6 +27,8 @@ class ReJoin(Environment):
         self.episode_curr = 0
         self.step_curr = 0
         self.memory_actions = []
+        self.memory_rewards = [0]
+        self.memory_costs = memory_costs
 
         self.query = None
         self.state_vector = None
@@ -137,6 +139,9 @@ class ReJoin(Environment):
             self.query = self.database.get_query_by_filename("1a")
         self.episode_curr += 1
 
+        if self.query["file"] not in self.memory_costs:
+            self.memory_costs[self.query["file"]] = []
+
         # self.query = self.database.get_query_by_id(self.episode_curr)
         # self.query = self.database.get_query_by_id(100)
         # print(self.query["moz"])
@@ -215,10 +220,19 @@ class ReJoin(Environment):
             self.state_vector.aliases,
         )
         cost = self.database.get_reward(constructed_query, self.phase)
-        reward = 1 / cost * 1000000
+        self.memory_costs[self.query["file"]].append(cost)
+        reward = 1 / cost * 100000
         # reward **= 2
-        reward = math.exp(reward)
+        # reward = math.exp(reward)
+        # print(self.memory_costs)
 
+        r = np.array(self.memory_rewards)
+        mean = r.mean()
+        std = r.std()
+        print("Mean: ", mean, " Std: ", std)
+        reward = (reward - mean) / (std + 0.1)
+
+        self.memory_rewards.append(reward)
         print("Cost: ", round(cost))
         return reward
 

@@ -158,7 +158,7 @@ class Database:
 
     def optimizer_cost(self, query, force_order=False):
         join_collapse_limit = "SET join_collapse_limit = "
-        join_collapse_limit += "1" if force_order else "8"
+        join_collapse_limit += "1" if force_order else "20"
         query = join_collapse_limit + ";EXPLAIN (FORMAT JSON) " + query + ";"
         cursor = self.conn.cursor()
         cursor.execute(query)
@@ -168,7 +168,7 @@ class Database:
 
     def get_query_time(self, query, force_order=False):
         join_collapse_limit = "SET join_collapse_limit = "
-        join_collapse_limit += "1" if force_order else "8"
+        join_collapse_limit += "1" if force_order else "20"
         query = join_collapse_limit + ";EXPLAIN ANALYZE " + query + ";"
         cursor = self.conn.cursor()
         cursor.execute(query)
