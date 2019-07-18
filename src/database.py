@@ -86,8 +86,6 @@ class Database:
         relations = []
         for i in range(1, self.get_queries_size()):
             q = self.get_query_by_id(i)
-            print(type(q["moz"]))
-            print(q["moz"]["from"])
             for r in q["moz"]["from"]:
                 if r["name"] not in relations:
                     relations.append(r["name"])
@@ -104,8 +102,7 @@ class Database:
         cursor.execute(q, (str(id),))
         rows = cursor.fetchone()
         cursor.close()
-        attrs = ["id", "file", "query", "moz", "planning", "execution", "cost"]
-
+        attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
 
@@ -116,7 +113,7 @@ class Database:
         cursor.execute(q, (file,))
         rows = cursor.fetchone()
         cursor.close()
-        attrs = ["id", "file", "query", "moz", "planning", "execution", "cost"]
+        attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
 
