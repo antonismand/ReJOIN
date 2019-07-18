@@ -10,7 +10,7 @@ import pprint
 
 
 class ReJoin(Environment):
-    def __init__(self, database, phase, query_to_run):
+    def __init__(self, database, phase, query_to_run, total_episodes, total_groups):
         self.query_to_run = query_to_run
         self.pp = pprint.PrettyPrinter(indent=2)
 
@@ -31,6 +31,10 @@ class ReJoin(Environment):
         self.state_vector = None
         self.state = None
 
+        self.it = 0
+        self.query_group = None
+        self.episodes_per_group = int(total_episodes / total_groups)
+        print("Episodes per group", self.episodes_per_group)
         self.query_generator = database.get_queries_incremental()
 
     def __str__(self):
@@ -102,17 +106,28 @@ class ReJoin(Environment):
         """
 
         # Create a new initial state
+
+        # Incremental learning - ordering queries by increasing number of joins
+        if self.episode_curr % self.episodes_per_group == 0:        # Group is over
+            self.query_group = next(self.query_generator, None)
+
+            self.it = 0
+
+            if self.query_group is None:
+                self.query_generator = self.database.get_queries_incremental()
+                self.query_group = next(self.query_generator, None)
+
+        self.query = self.query_group[self.it]
+        self.it = (self.it+1) % len(self.query_group)
+        # print(self.query)
+        print("Group: " + str(int(self.query["relations_num"])), ",  File Name:" + self.query["file"])
+
         self.episode_curr += 1
 
-        # # Incremental learning - ordering queries by increasing number of joins
-        # self.query = next(self.query_generator, None)
-        # if self.query is None:
-        #     self.query_generator = self.database.get_queries_incremental()
-        #     self.query = next(self.query_generator, None)
-
         # self.query = self.database.get_query_by_id(self.episode_curr)
-        # self.query = self.database.get_query_by_id(1)
-        self.query = self.database.get_query_by_filename("3a")
+        # self.query = self.database.get_query_by_id(100)
+        # print(self.query["moz"])
+        # self.query = self.database.get_query_by_filename("1a")
         self.state_vector = StateVector(
             self.query, self.database.tables, self.relations, self.attributes
         )

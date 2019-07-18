@@ -43,7 +43,10 @@ def make_args_parser():
         default=0.0,
     )
     parser.add_argument(
-        "-e", "--episodes", type=int, default=1000, help="Number of episodes"
+        "-e", "--episodes", type=int, default=500, help="Number of episodes"
+    )
+    parser.add_argument(
+        "-g", "--groups", type=int, default=4, help="Total groups of different number of relations"
     )
     parser.add_argument(
         "-t",
@@ -89,7 +92,7 @@ def main():
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
     # Initialize environment (tensorforce's template)
-    environment = ReJoin(db, args.phase, args.query)
+    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups)
 
     if args.agent_config is not None:
         with open(args.agent_config, "r") as fp:
@@ -146,8 +149,8 @@ def main():
         actions=environment.actions,
         network=network_spec,
         step_optimizer=dict(type="adam", learning_rate=1e-3),
-        # update_mode=dict(units='episodes', batch_size=5, frequency=1),
-        summarizer=dict(directory="./board", steps=1, labels=['graph', 'gradients_scalar',
+        update_mode=dict(units='episodes', batch_size=5, frequency=2),
+        summarizer=dict(directory="./board", steps=50, labels=['graph', 'gradients_scalar',
                                                               'regularization', 'inputs', 'losses', 'variables'])
         # distributions=dict(action=dict(type=CustomCategorical)),
     )
@@ -192,7 +195,7 @@ def main():
 
     # Start Training
     runner.run(
-        episodes=500,
+        episodes=args.episodes,
         max_episode_timesteps=args.max_timesteps,
         episode_finished=episode_finished,
     )

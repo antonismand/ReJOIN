@@ -86,11 +86,12 @@ class Database:
         relations = []
 
         x = self.get_queries_incremental()
-        for q in x:
-            for r in q["moz"]["from"]:
-                if r["name"] not in relations:
-                    relations.append(r["name"])
-                    relations_attributes[r["name"]] = tables_attributes[r["value"]]
+        for group in x:
+            for q in group:
+                for r in q["moz"]["from"]:
+                    if r["name"] not in relations:
+                        relations.append(r["name"])
+                        relations_attributes[r["name"]] = tables_attributes[r["value"]]
         return tables, relations, relations_attributes
 
     def print_relations_attrs(self):
@@ -126,8 +127,20 @@ class Database:
         rows = cursor.fetchall()
         cursor.close()
         attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
-        for row in rows:
-            yield dict(zip(attrs, row))
+
+        qs = {}
+        for q in rows:
+            q = dict(zip(attrs, q))
+            num = q["relations_num"]
+            if num not in qs:
+                qs[num] = [q]
+            else:
+                qs[num].append(q)
+
+        keys = list(qs.keys())
+        keys.sort()
+        for key in keys:
+            yield qs[key]  # group
 
         return None
 
@@ -198,7 +211,7 @@ class Database:
 
         query = select_clause + " FROM " + subq + where_clause + limit
 
-        print(query)
+        # print(query)
         self.counter = 0
         return query
 
