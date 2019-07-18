@@ -7,6 +7,7 @@ from src.state import StateVector
 
 import numpy as np
 import pprint
+import math
 
 
 class ReJoin(Environment):
@@ -31,11 +32,13 @@ class ReJoin(Environment):
         self.state_vector = None
         self.state = None
 
-        self.it = 0
-        self.query_group = None
-        self.episodes_per_group = int(total_episodes / total_groups)
-        print("Episodes per group", self.episodes_per_group)
-        self.query_generator = database.get_queries_incremental()
+        self.running_groups = total_groups != 0
+        if total_groups != 0:
+            self.it = 0
+            self.query_group = None
+            self.episodes_per_group = int(total_episodes / total_groups)
+            print("Episodes per group", self.episodes_per_group)
+            self.query_generator = database.get_queries_incremental()
 
     def __str__(self):
         return "ReJOIN"
@@ -79,7 +82,10 @@ class ReJoin(Environment):
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
         return dict(
-            type="int", num_actions=int((self.num_relations * self.num_relations - self.num_relations)/2)
+            type="int",
+            num_actions=int(
+                (self.num_relations * self.num_relations - self.num_relations) / 2
+            ),
         )
 
     def is_terminal(self, possible_actions_len):
@@ -107,21 +113,28 @@ class ReJoin(Environment):
 
         # Create a new initial state
 
+        if self.query_to_run != "":
+            self.query = self.database.get_query_by_filename(self.query_to_run)
+
         # Incremental learning - ordering queries by increasing number of joins
-        if self.episode_curr % self.episodes_per_group == 0:        # Group is over
-            self.query_group = next(self.query_generator, None)
-
-            self.it = 0
-
-            if self.query_group is None:
-                self.query_generator = self.database.get_queries_incremental()
+        elif self.running_groups:
+            if self.episode_curr % self.episodes_per_group == 0:  # Group is over
                 self.query_group = next(self.query_generator, None)
+                self.it = 0
+                if self.query_group is None:
+                    self.query_generator = self.database.get_queries_incremental()
+                    self.query_group = next(self.query_generator, None)
 
-        self.query = self.query_group[self.it]
-        self.it = (self.it+1) % len(self.query_group)
-        # print(self.query)
-        print("Group: " + str(int(self.query["relations_num"])), ",  File Name:" + self.query["file"])
+            self.query = self.query_group[self.it]
+            self.it = (self.it + 1) % len(self.query_group)
+            # print(self.query)
+            print(
+                "Group: " + str(int(self.query["relations_num"])),
+                ",  File Name:" + self.query["file"],
+            )
 
+        else:
+            self.query = self.database.get_query_by_filename("1a")
         self.episode_curr += 1
 
         # self.query = self.database.get_query_by_id(self.episode_curr)
@@ -175,7 +188,7 @@ class ReJoin(Environment):
         else:
             reward = 0
 
-            print("Pre-action:", action)
+            print("Action:", action)
             action = action % len(possible_actions)  # workaround hack
             action_pair = possible_actions[action]
             # print("State dependent-action (mod):", action)
@@ -203,9 +216,10 @@ class ReJoin(Environment):
         )
         cost = self.database.get_reward(constructed_query, self.phase)
         reward = 1 / cost * 1000000
-        reward **= 2
+        # reward **= 2
+        reward = math.exp(reward)
 
-        print("\nCost: ", round(cost))
+        print("Cost: ", round(cost))
         return reward
 
     def _get_valid_actions(self):

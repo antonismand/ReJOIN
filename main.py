@@ -18,7 +18,7 @@ import sys
 import time
 import json
 
-sys.argv = [""]
+# sys.argv = [""]
 
 
 def make_args_parser():
@@ -46,7 +46,11 @@ def make_args_parser():
         "-e", "--episodes", type=int, default=500, help="Number of episodes"
     )
     parser.add_argument(
-        "-g", "--groups", type=int, default=4, help="Total groups of different number of relations"
+        "-g",
+        "--groups",
+        type=int,
+        default=0,
+        help="Total groups of different number of relations",
     )
     parser.add_argument(
         "-t",
@@ -80,7 +84,6 @@ def print_config(args):
 def main():
     args = make_args_parser()
     # print_config(args)
-    print_config(args)
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -113,18 +116,18 @@ def main():
         [
             dict(type="input", names=["tree_structure"]),
             # dict(type="flatten"),
-            dict(type="dense", size=dims, activation="relu"),
+            # dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="tree_structure_emb"),
         ],
         [
             dict(type="input", names=["join_predicates"]),
             # dict(type="flatten"),
-            dict(type="dense", size=dims, activation="relu"),
+            # dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="join_predicates_emb"),
         ],
         [
             dict(type="input", names=["selection_predicates"]),
-            dict(type="dense", size=dims, activation="relu"),
+            # dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="selection_predicates_emb"),
         ],
         [
@@ -148,10 +151,20 @@ def main():
         states=environment.states,
         actions=environment.actions,
         network=network_spec,
-        step_optimizer=dict(type="adam", learning_rate=1e-3),
-        update_mode=dict(units='episodes', batch_size=5, frequency=2),
-        summarizer=dict(directory="./board", steps=50, labels=['graph', 'gradients_scalar',
-                                                              'regularization', 'inputs', 'losses', 'variables'])
+        # step_optimizer=dict(type="adam", learning_rate=1e-3),
+        update_mode=dict(units="episodes", batch_size=5, frequency=2),
+        summarizer=dict(
+            directory="./board",
+            steps=50,
+            labels=[
+                "graph",
+                "gradients_scalar",
+                "regularization",
+                "inputs",
+                "losses",
+                "variables",
+            ],
+        )
         # distributions=dict(action=dict(type=CustomCategorical)),
     )
 
@@ -171,19 +184,22 @@ def main():
     def episode_finished(r):
         if r.episode % report_episodes == 0:
             sps = r.timestep / (time.time() - r.start_time)
+            # logger.info(
+            #     "Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(
+            #         ep=r.episode, ts=r.timestep, sps=sps
+            #     )
+            # )
+
             logger.info(
-                "Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(
-                    ep=r.episode, ts=r.timestep, sps=sps
-                )
+                "Episode {ep} reward: {r}".format(ep=r.episode, r=r.episode_rewards[-1])
             )
-            logger.info("Episode reward: {}".format(r.episode_rewards[-1]))
+            # logger.info(
+            #     "Average of last 500 rewards: {}".format(
+            #         sum(r.episode_rewards[-500:]) / 500
+            #     )
+            # )
             logger.info(
-                "Average of last 500 rewards: {}".format(
-                    sum(r.episode_rewards[-500:]) / 500
-                )
-            )
-            logger.info(
-                "Average of last 100 rewards: {}".format(
+                "Average of last 100 rewards: {}\n".format(
                     sum(r.episode_rewards[-100:]) / 100
                 )
             )
@@ -214,7 +230,12 @@ def main():
                 return True
 
     find_convergence(runner.episode_rewards)
+    plt.figure(1)
     plt.hist(runner.episode_rewards)
+
+    plt.figure(2)
+    plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
+
     plt.show(block=True)
     db.close()
 
