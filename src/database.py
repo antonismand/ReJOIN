@@ -5,7 +5,7 @@ import src.database_utils as utils
 
 
 class Database:
-    def __init__(self):
+    def __init__(self, collect_db_info):
 
         self.pp = pprint.PrettyPrinter(indent=2)
 
@@ -19,14 +19,15 @@ class Database:
         # - {relation : attributes}
         # - attributes
 
-        self.tables, self.relations, self.relations_attributes = self.get_relations_attributes()
-        self.attributes = []
-        for k in self.relations_attributes:
-            self.attributes = self.attributes + [
-                k + "." + v for v in self.relations_attributes[k]
-            ]
+        if collect_db_info:
+            self.tables, self.relations, self.relations_attributes = self.get_relations_attributes()
+            self.attributes = []
+            for k in self.relations_attributes:
+                self.attributes = self.attributes + [
+                    k + "." + v for v in self.relations_attributes[k]
+                ]
 
-        self.pp.pprint(self.relations)
+        # self.pp.pprint(self.relations)
 
     def connect(self):
         try:
@@ -119,6 +120,20 @@ class Database:
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
 
+    def get_queries_incremental(self):
+        cursor = self.conn.cursor()
+        q = "SELECT * FROM queries ORDER BY relations_num"
+        cursor.execute(q)
+        rows = cursor.fetchall()
+        cursor.close()
+        attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
+
+        for row in rows:
+            yield dict(zip(attrs, row))
+
+        return None
+
+
     def close(self):
         if self.conn:
             self.conn.close()
@@ -199,9 +214,9 @@ class Database:
         relations_to_alias[right_alias] = new_alias
         self.counter += 1
 
-        print("\n\nAliases to relations: ")
+        # print("\n\nAliases to relations: ")
         alias_to_relations[new_alias] = [left_alias, right_alias]
-        self.print_dict(alias_to_relations)
+        # self.print_dict(alias_to_relations)
 
         # print("\n\nJoining subtrees: " + left_alias + " ⟕ " + right_alias)
 

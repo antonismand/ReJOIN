@@ -31,7 +31,7 @@ class ReJoin(Environment):
         self.state_vector = None
         self.state = None
 
-        self.join_ordering = self.relations.copy()
+        self.query_generator = database.get_queries_incremental()
 
     def __str__(self):
         return "ReJOIN"
@@ -75,8 +75,8 @@ class ReJoin(Environment):
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
         return dict(
-            type="int", num_actions=self.num_relations * self.num_relations
-        )  # - self.num_relations
+            type="int", num_actions=int((self.num_relations * self.num_relations - self.num_relations)/2)
+        )
 
     def is_terminal(self, possible_actions_len):
         return possible_actions_len == 0
@@ -101,13 +101,18 @@ class ReJoin(Environment):
             initial state of reset environment.
         """
 
-        # print("\n\nRESET\n\n")
-
         # Create a new initial state
         self.episode_curr += 1
+
+        # Incremental learning - ordering queries by increasing number of joins
+        self.query = next(self.query_generator, None)
+        if self.query is None:
+            self.query_generator = self.database.get_queries_incremental()
+            self.query = next(self.query_generator, None)
+
         # self.query = self.database.get_query_by_id(self.episode_curr)
         # self.query = self.database.get_query_by_id(1)
-        self.query = self.database.get_query_by_filename("3a")
+        # self.query = self.database.get_query_by_filename("3a")
         self.state_vector = StateVector(
             self.query, self.database.tables, self.relations, self.attributes
         )
@@ -206,7 +211,7 @@ class ReJoin(Environment):
                             and (i, j) not in actions
                         ):
                             actions.append((i, j))
-                            actions.append((j, i))
+                            # actions.append((j, i))
         return actions
 
     def _set_next_state(self, action):

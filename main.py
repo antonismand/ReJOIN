@@ -83,7 +83,7 @@ def main():
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
     # Connect to database
-    db = Database()
+    db = Database(collect_db_info=True)
     # get_times()
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
@@ -104,17 +104,18 @@ def main():
         raise TensorForceError("No network configuration provided.")
 
     dims = 128
+    # dims1 = 1024
     # Todo: Pass this via JSON
     network_spec = [
         [
             dict(type="input", names=["tree_structure"]),
-            dict(type="flatten"),
+            # dict(type="flatten"),
             dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="tree_structure_emb"),
         ],
         [
             dict(type="input", names=["join_predicates"]),
-            dict(type="flatten"),
+            # dict(type="flatten"),
             dict(type="dense", size=dims, activation="relu"),
             dict(type="output", name="join_predicates_emb"),
         ],
@@ -145,6 +146,9 @@ def main():
         actions=environment.actions,
         network=network_spec,
         step_optimizer=dict(type="adam", learning_rate=1e-3),
+        # update_mode=dict(units='episodes', batch_size=5, frequency=1),
+        summarizer=dict(directory="./board", steps=1, labels=['graph', 'gradients_scalar',
+                                                              'regularization', 'inputs', 'losses', 'variables'])
         # distributions=dict(action=dict(type=CustomCategorical)),
     )
 

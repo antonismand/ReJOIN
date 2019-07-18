@@ -150,6 +150,7 @@ def get_where_clause(query_ast, relations_to_alias, alias):
 
     operator_map = {
         "eq": "=",
+        "neq": "!=",
         "gt": ">",
         "lt": "<",
         "gte": ">=",

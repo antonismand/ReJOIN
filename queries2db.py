@@ -1,13 +1,28 @@
 from src.database import Database
-from src.state import StateVector
+import moz_sql_parser
 import json
 import os
 
-db = Database()
+
+def backup_queries():
+
+    cmd = "pg_dump -h localhost -p 5432 -U postgres -W  --table='queries' " \
+          "--data-only --column-inserts imdbload > queries.sql"
+    try:
+        os.system(cmd)
+        print("Backup completed")
+    except Exception as e:
+        print("!!Problem occured!!")
+        print(e)
+
+
+db = Database(collect_db_info=False)
+
 cursor = db.conn.cursor()
 q = """
 CREATE TABLE queries (
         id SERIAL PRIMARY KEY,
+        relations_num REAL,
         file_name VARCHAR(10) NOT NULL,
         query TEXT NOT NULL,
         moz JSON NOT NULL,
@@ -28,15 +43,18 @@ cursor = db.conn.cursor()
 for file_name in files:
     file = open(dataset + "/" + file_name, "r")
     query = file.read()
-    ast = StateVector(query, db.tables, db.attributes).query_ast
+    ast = moz_sql_parser.parse(query)
+    relations_num = len(ast["from"])
     planning, execution = db.get_query_time(query)
     cost = db.optimizer_cost(query)
-    print(file_name, planning, execution, cost)
+    print(file_name, relations_num, planning, execution, cost)
     cursor.execute(
-        "INSERT INTO queries (file_name, query, moz, planning, execution, cost) VALUES(%s, %s, %s, %s, %s, %s)",
-        (file_name, query, json.dumps(ast), planning, execution, cost),
+        "INSERT INTO queries (file_name, relations_num, query, moz, planning, execution, cost) VALUES(%s, %s, %s, %s, %s, %s, %s)",
+        (file_name, relations_num, query, json.dumps(ast), planning, execution, cost),
     )
     # break
 
+
+backup_queries()
 db.conn.commit()
 cursor.close()
