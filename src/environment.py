@@ -10,8 +10,8 @@ import pprint
 
 
 class ReJoin(Environment):
-    def __init__(self, database, phase):
-
+    def __init__(self, database, phase, query_to_run):
+        self.query_to_run = query_to_run
         self.pp = pprint.PrettyPrinter(indent=2)
 
         self.database = database
@@ -74,7 +74,9 @@ class ReJoin(Environment):
                 - num_actions: integer (required if type == 'int').
                 - min_value and max_value: float (optional if type == 'float', default: none).
         """
-        return dict(type="int", num_actions=self.num_relations * self.num_relations)  # - self.num_relations
+        return dict(
+            type="int", num_actions=self.num_relations * self.num_relations
+        )  # - self.num_relations
 
     def is_terminal(self, possible_actions_len):
         return possible_actions_len == 0
@@ -105,8 +107,10 @@ class ReJoin(Environment):
         self.episode_curr += 1
         # self.query = self.database.get_query_by_id(self.episode_curr)
         # self.query = self.database.get_query_by_id(1)
-        self.query = self.database.get_query_by_filename("16a")
-        self.state_vector = StateVector(self.query, self.database.tables, self.relations, self.attributes)
+        self.query = self.database.get_query_by_filename("3a")
+        self.state_vector = StateVector(
+            self.query, self.database.tables, self.relations, self.attributes
+        )
         self.state = self.state_vector.vectorize()
         self.memory_actions = []
         self.step_curr = 0
@@ -134,11 +138,11 @@ class ReJoin(Environment):
         )
 
         self.step_curr += 1
-        print("Step:", self.step_curr)
+        # print("Step:", self.step_curr)
 
         # Get reward and process terminal & next state.
         possible_actions = self._get_valid_actions()  # [(0,1), (1,0), (1,2), (2,1)]
-        print("Possible actions", possible_actions)
+        # print("Possible actions", possible_actions)
 
         terminal = self.is_terminal(len(possible_actions))
 
@@ -154,7 +158,7 @@ class ReJoin(Environment):
             print("Pre-action:", action)
             action = action % len(possible_actions)  # workaround hack
             action_pair = possible_actions[action]
-            print("State dependent-action (mod):", action)
+            # print("State dependent-action (mod):", action)
             # print("Chose pair:", action_pair)
 
             self._set_next_state(action_pair)
@@ -179,6 +183,7 @@ class ReJoin(Environment):
         )
         cost = self.database.get_reward(constructed_query, self.phase)
         reward = 1 / cost * 1000000
+        reward **= 2
 
         print("\nCost: ", round(cost))
         return reward
@@ -256,9 +261,7 @@ class ReJoin(Environment):
                 join_ordering[action_pair[1]],
             ]
 
-            final_ordering = join_ordering[
-                action_pair[0]
-            ]
+            final_ordering = join_ordering[action_pair[0]]
 
             del join_ordering[action_pair[1]]
 
@@ -266,5 +269,5 @@ class ReJoin(Environment):
             # for i in tmp:
             #     print(i)
 
-        print("\n\nFinal Join Ordering: ", final_ordering)
+        # print("\n\nFinal Join Ordering: ", final_ordering)
         return final_ordering

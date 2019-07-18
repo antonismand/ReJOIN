@@ -8,6 +8,7 @@ from tensorforce.execution import Runner
 from src.environment import ReJoin
 from src.database import Database
 from tensorforce.agents import PPOAgent
+import matplotlib.pyplot as plt
 
 # from src.distribution import CustomCategorical
 
@@ -51,6 +52,7 @@ def make_args_parser():
         default=20,
         help="Maximum number of timesteps per episode",
     )
+    parser.add_argument("-q", "--query", default="", help="Run specific query")
     parser.add_argument("-s", "--save", help="Save agent to this dir")
     parser.add_argument(
         "-se",
@@ -75,7 +77,7 @@ def print_config(args):
 def main():
     args = make_args_parser()
     # print_config(args)
-
+    print_config(args)
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -87,7 +89,7 @@ def main():
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
     # Initialize environment (tensorforce's template)
-    environment = ReJoin(db, args.phase)
+    environment = ReJoin(db, args.phase, args.query)
 
     if args.agent_config is not None:
         with open(args.agent_config, "r") as fp:
@@ -180,7 +182,9 @@ def main():
             )
         return True
 
-    logger.info("Starting {agent} for Environment '{env}'".format(agent=agent, env=environment))
+    logger.info(
+        "Starting {agent} for Environment '{env}'".format(agent=agent, env=environment)
+    )
 
     # Start Training
     runner.run(
@@ -203,6 +207,8 @@ def main():
                 return True
 
     find_convergence(runner.episode_rewards)
+    plt.hist(runner.episode_rewards)
+    plt.show(block=True)
     db.close()
 
 
