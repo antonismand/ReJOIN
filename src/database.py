@@ -84,8 +84,9 @@ class Database:
         tables = list(tables_attributes.keys())
         relations_attributes = {}
         relations = []
-        for i in range(1, self.get_queries_size()):
-            q = self.get_query_by_id(i)
+
+        x = self.get_queries_incremental()
+        for q in x:
             for r in q["moz"]["from"]:
                 if r["name"] not in relations:
                     relations.append(r["name"])
@@ -106,6 +107,7 @@ class Database:
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
 
+
     def get_query_by_filename(self, file):
         file = file + ".sql"
         cursor = self.conn.cursor()
@@ -124,7 +126,6 @@ class Database:
         rows = cursor.fetchall()
         cursor.close()
         attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
-
         for row in rows:
             yield dict(zip(attrs, row))
 

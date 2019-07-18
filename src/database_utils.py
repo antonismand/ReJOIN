@@ -70,7 +70,18 @@ def construct_stmt(stmt, operator_map, relations_to_alias, alias):
         )
     else:
         if key == "between":
-            rvalue = str(stmt[key][1]) + " AND " + str(stmt[key][2])
+
+            if isinstance(stmt[key][1], dict):
+                left = "'" + stmt[key][1]["literal"] + "'"
+            else:
+                left = str(stmt[key][1])
+
+            if isinstance(stmt[key][2], dict):
+                right = "'" + stmt[key][2]["literal"] + "'"
+            else:
+                right = str(stmt[key][2])
+
+            rvalue = left + " AND " + right
 
         elif isinstance(stmt[key][1], dict):  # Dict (Naively assuming it's a literal)
 
