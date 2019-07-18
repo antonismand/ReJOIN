@@ -104,15 +104,15 @@ class ReJoin(Environment):
         # Create a new initial state
         self.episode_curr += 1
 
-        # Incremental learning - ordering queries by increasing number of joins
-        self.query = next(self.query_generator, None)
-        if self.query is None:
-            self.query_generator = self.database.get_queries_incremental()
-            self.query = next(self.query_generator, None)
+        # # Incremental learning - ordering queries by increasing number of joins
+        # self.query = next(self.query_generator, None)
+        # if self.query is None:
+        #     self.query_generator = self.database.get_queries_incremental()
+        #     self.query = next(self.query_generator, None)
 
         # self.query = self.database.get_query_by_id(self.episode_curr)
         # self.query = self.database.get_query_by_id(1)
-        # self.query = self.database.get_query_by_filename("3a")
+        self.query = self.database.get_query_by_filename("3a")
         self.state_vector = StateVector(
             self.query, self.database.tables, self.relations, self.attributes
         )

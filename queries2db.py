@@ -22,8 +22,8 @@ cursor = db.conn.cursor()
 q = """
 CREATE TABLE queries (
         id SERIAL PRIMARY KEY,
-        relations_num REAL,
         file_name VARCHAR(10) NOT NULL,
+        relations_num REAL,
         query TEXT NOT NULL,
         moz JSON NOT NULL,
         planning REAL,

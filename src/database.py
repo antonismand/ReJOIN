@@ -61,7 +61,6 @@ class Database:
             relations_attributes: dict {'alias1':['attr1','attr2',..], .. }
 
         """
-
         cursor = self.conn.cursor()
         q = (
             "SELECT c.table_name, c.column_name FROM information_schema.columns c "
@@ -83,11 +82,12 @@ class Database:
                 tables_attributes[table] = [attribute]
 
         tables = list(tables_attributes.keys())
-
         relations_attributes = {}
         relations = []
-        for i in range(1, 112):
+        for i in range(1, self.get_queries_size()):
             q = self.get_query_by_id(i)
+            print(type(q["moz"]))
+            print(q["moz"]["from"])
             for r in q["moz"]["from"]:
                 if r["name"] not in relations:
                     relations.append(r["name"])
@@ -133,6 +133,13 @@ class Database:
 
         return None
 
+    def get_queries_size(self):
+        cursor = self.conn.cursor()
+        q = "SELECT COUNT(*) FROM queries"
+        cursor.execute(q, (str(id),))
+        row = cursor.fetchone()
+        cursor.close()
+        return row[0]
 
     def close(self):
         if self.conn:
