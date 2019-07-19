@@ -45,13 +45,13 @@ def make_args_parser():
         default=0.0,
     )
     parser.add_argument(
-        "-e", "--episodes", type=int, default=400, help="Number of episodes"
+        "-e", "--episodes", type=int, default=800, help="Number of episodes"
     )
     parser.add_argument(
         "-g",
         "--groups",
         type=int,
-        default=1,
+        default=2,
         help="Total groups of different number of relations",
     )
     parser.add_argument("-m", "--mode", type=str, default="round", help="Incremental Mode")
@@ -241,7 +241,7 @@ def main():
     plt.figure(2)
     plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
-    output_path = "./outputs/1group-400-round/"
+    output_path = "./outputs/2group-800-round/"
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     # Plot recorded costs over all episodes

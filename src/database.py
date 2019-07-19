@@ -144,6 +144,15 @@ class Database:
 
         return None
 
+    def get_groups_size(self, num_of_groups):
+        cursor = self.conn.cursor()
+        q = "select sum(count) from (select relations_num, count(*) " \
+            "as count from queries group by relations_num order by relations_num limit  %s) X"
+        cursor.execute(q, (str(num_of_groups),))
+        row = cursor.fetchone()
+        cursor.close()
+        return row[0]
+
     def get_queries_size(self):
         cursor = self.conn.cursor()
         q = "SELECT COUNT(*) FROM queries"

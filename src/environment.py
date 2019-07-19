@@ -40,6 +40,8 @@ class ReJoin(Environment):
             self.mode = mode
             self.query_group = None
             self.group_size = None
+            self.total_episodes = total_episodes
+            self.total_groups_size = database.get_groups_size(total_groups)
             self.episodes_per_query = None
             self.episodes_per_group = int(total_episodes / total_groups)
             self.query_generator = database.get_queries_incremental()
@@ -128,6 +130,14 @@ class ReJoin(Environment):
                 self.query_group = next(self.query_generator, None)  # Read next group
                 self.it = 0
                 self.group_size = len(self.query_group)
+
+                # Number of group episodes is proportional to number of queries in the group
+                p = self.group_size / self.total_groups_size
+                print(self.total_groups_size)
+                print(p)
+                self.episodes_per_group = int(p * self.total_episodes)
+                print(self.episodes_per_group)
+
                 self.episodes_per_query = int(self.episodes_per_group / self.group_size)
                 if self.query_group is None:     # If groups are over start again
                     self.query_generator = self.database.get_queries_incremental()
@@ -165,10 +175,6 @@ class ReJoin(Environment):
         if self.query["file"] not in self.memory_costs:
             self.memory_costs[self.query["file"]] = []
 
-        # self.query = self.database.get_query_by_id(self.episode_curr)
-        # self.query = self.database.get_query_by_id(100)
-        # print(self.query["moz"])
-        # self.query = self.database.get_query_by_filename("1a")
         self.state_vector = StateVector(
             self.query, self.database.tables, self.relations, self.attributes
         )
