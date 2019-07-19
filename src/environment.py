@@ -45,7 +45,6 @@ class ReJoin(Environment):
             self.episodes_per_query = None
             self.episodes_per_group = int(total_episodes / total_groups)
             self.query_generator = database.get_queries_incremental()
-            print("\nEpisodes per group:", self.episodes_per_group)
             print("Mode:", self.mode)
 
     def __str__(self):
@@ -139,9 +138,13 @@ class ReJoin(Environment):
                 print(self.episodes_per_group)
 
                 self.episodes_per_query = int(self.episodes_per_group / self.group_size)
+                # print(self.episodes_per_query)
                 if self.query_group is None:     # If groups are over start again
                     self.query_generator = self.database.get_queries_incremental()
                     self.query_group = next(self.query_generator, None)
+                    self.group_size = len(self.query_group)
+                    p = self.group_size / self.total_groups_size
+                    self.episodes_per_group = int(p * self.total_episodes)
 
             # <Episodes per group> iterations
             if self.mode == "round":
