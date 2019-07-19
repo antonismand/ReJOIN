@@ -7,16 +7,13 @@ from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from src.environment import ReJoin
 from src.database import Database
-from tensorforce.agents import PPOAgent
 import matplotlib.pyplot as plt
 import numpy as np
-
-# from src.distribution import CustomCategorical
 
 import argparse
 import logging
 import sys
-import time
+# import time
 import os
 import json
 
@@ -36,7 +33,7 @@ def make_args_parser():
         help="Network specification file",
     )
     parser.add_argument(
-        "-e", "--episodes", type=int, default=110, help="Number of episodes"
+        "-e", "--episodes", type=int, default=800, help="Number of episodes"
     )
     parser.add_argument(
         "-g",
@@ -49,7 +46,7 @@ def make_args_parser():
         "-tg",
         "--target_group",
         type=int,
-        default=4,
+        default=5,
         help="A specific group",
     )
     parser.add_argument("-m", "--mode", type=str, default="round", help="Incremental Mode")
@@ -84,11 +81,23 @@ def print_config(args):
 
 
 def main():
+
     args = make_args_parser()
     # print_config(args)
     logger = logging.getLogger(__name__)
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler(sys.stdout))
+
+    # Temporary for quick access
+    args.episodes = 800
+    args.testing = False
+    args.groups = 1
+    args.target_group = 5
+    args.restore_agent = False
+    args.save_agent = True
+    args.save_episodes = 100
+    input_path = "./saved_model/group4-110"
+    args.save_output_path = "./saved_model/group5-800-round"
 
     # Connect to database
     db = Database(collect_db_info=True)
@@ -122,18 +131,8 @@ def main():
         ),
     )
 
-    # Temporary for quick access
-    args.testing = False
-    args.groups = 1
-    args.target_group = 2
-    args.restore_agent = False
-    args.save_agent = True
-    args.save_episodes = 100
-    input_path = "./saved_model/group1-110"
-    args.save_output_path = "./saved_model/group2-800-round"
     if args.restore_agent:
         agent.restore_model(directory=input_path)
-    ##############################################################
 
     runner = Runner(agent=agent, environment=environment)
     # ~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~ #

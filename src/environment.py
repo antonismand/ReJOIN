@@ -134,10 +134,10 @@ class ReJoin(Environment):
 
                 # Number of group episodes is proportional to number of queries in the group
                 p = self.group_size / self.total_groups_size
-                print(self.total_groups_size)
-                print(p)
+                print("Total Group size: ", self.total_groups_size)
+                print("P: ", p)
                 self.episodes_per_group = int(p * self.total_episodes)
-                print(self.episodes_per_group)
+                print("Eps per group: ", self.episodes_per_group)
 
                 self.episodes_per_query = int(self.episodes_per_group / self.group_size)
                 # print(self.episodes_per_query)

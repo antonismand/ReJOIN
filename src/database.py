@@ -187,14 +187,15 @@ class Database:
 
         cursor = self.conn.cursor()
 
-        # Size of a specific group
-        if target != "":
+        # Size of groups 1 to num_of_groups
+        if target == "":
             q = (
                 "select sum(count) from (select relations_num, count(*) "
                 "as count from queries group by relations_num order by relations_num limit  %s) X"
             )
             cursor.execute(q, (str(num_of_groups),))
-        # Size of groups 1 to num_of_groups
+
+        # Size of a specific group
         else:
             q = (
                 "select count(*) from queries where relations_num=%s"
