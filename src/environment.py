@@ -91,9 +91,8 @@ class ReJoin(Environment):
         """
         return dict(
             type="int",
-            num_actions=int(
-                (self.num_relations * self.num_relations - self.num_relations) / 2
-            ),
+            num_actions=47,
+            # int((self.num_relations * self.num_relations - self.num_relations) / 2),
         )
 
     def is_terminal(self, possible_actions_len):

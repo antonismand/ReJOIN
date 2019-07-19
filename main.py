@@ -36,7 +36,7 @@ def make_args_parser():
         help="Network specification file",
     )
     parser.add_argument(
-        "-e", "--episodes", type=int, default=3, help="Number of episodes"
+        "-e", "--episodes", type=int, default=110, help="Number of episodes"
     )
     parser.add_argument(
         "-g",
@@ -123,16 +123,16 @@ def main():
     )
 
     # Temporary for quick access
-    args.testing = True
-    args.episodes = 3
+    args.testing = False
     args.groups = 1
-    args.target_group = 1
-    args.restore_agent = True
-    args.save_agent = False
+    args.target_group = 2
+    args.restore_agent = False
+    args.save_agent = True
     args.save_episodes = 100
-    args.save_output_path = "./saved_model/group1-200-round"
+    input_path = "./saved_model/group1-110"
+    args.save_output_path = "./saved_model/group2-800-round"
     if args.restore_agent:
-        agent.restore_model(directory="./saved_model/")
+        agent.restore_model(directory=input_path)
     ##############################################################
 
     runner = Runner(agent=agent, environment=environment)
