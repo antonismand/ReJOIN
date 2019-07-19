@@ -6,13 +6,13 @@ from tensorforce import TensorForceError
 from tensorforce.agents import Agent
 from tensorforce.execution import Runner
 from src.environment import ReJoin
-from src.database import Database
 import matplotlib.pyplot as plt
 import numpy as np
 
 import argparse
 import logging
 import sys
+
 # import time
 import os
 import json
@@ -43,13 +43,11 @@ def make_args_parser():
         help="Total groups of different number of relations",
     )
     parser.add_argument(
-        "-tg",
-        "--target_group",
-        type=int,
-        default=5,
-        help="A specific group",
+        "-tg", "--target_group", type=int, default=5, help="A specific group"
     )
-    parser.add_argument("-m", "--mode", type=str, default="round", help="Incremental Mode")
+    parser.add_argument(
+        "-m", "--mode", type=str, default="round", help="Incremental Mode"
+    )
     parser.add_argument(
         "-ti",
         "--max-timesteps",
@@ -60,7 +58,13 @@ def make_args_parser():
     parser.add_argument("-q", "--query", default="", help="Run specific query")
     parser.add_argument("-s", "--save_agent", help="Save agent to this dir")
     parser.add_argument("-r", "--restore_agent", help="Restore Agent from this dir")
-    parser.add_argument('-t', '--testing', action='store_true', default=False, help="Test agent without learning.")
+    parser.add_argument(
+        "-t",
+        "--testing",
+        action="store_true",
+        default=False,
+        help="Test agent without learning.",
+    )
     parser.add_argument('-all', '--run_all', action='store_true', default=False, help="Order queries by relations_num")
     parser.add_argument(
         "-se",
@@ -90,7 +94,7 @@ def main():
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
     # Temporary for quick access
-    args.episodes = 7000
+    args.episodes = 10
     args.testing = False
     args.groups = 0
     args.run_all = True
@@ -98,18 +102,23 @@ def main():
     args.restore_agent = False
     args.save_agent = True
     args.save_episodes = 100
-    input_path = "./saved_model/group6-800"
-    args.save_output_path = "./saved_model/run_all"
-
-    # Connect to database
-    db = Database(collect_db_info=True)
+    input_path = "./saved_model/group4-110"
+    args.save_output_path = "./saved_model/group5-800-round"
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
     # Initialize environment (tensorforce's template)
-    memory_costs = {}
-    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups,
-                         memory_costs, args.mode, args.target_group, args.run_all)
+    memory = {}
+    environment = ReJoin(
+        args.phase,
+        args.query,
+        args.episodes,
+        args.groups,
+        memory,
+        args.mode,
+        args.target_group,
+        args.run_all
+    )
 
     if args.agent_config is not None:
         with open(args.agent_config, "r") as fp:
@@ -127,9 +136,7 @@ def main():
     agent = Agent.from_spec(
         spec=agent_config,
         kwargs=dict(
-            states=environment.states,
-            actions=environment.actions,
-            network=network_spec
+            states=environment.states, actions=environment.actions, network=network_spec
         ),
     )
 
@@ -151,8 +158,14 @@ def main():
                 except OSError:
                     raise OSError("Cannot save agent to dir {} ()".format(save_dir))
 
-            if args.testing is False and args.save_agent and r.episode == args.save_episodes:
-                r.agent.save_model(directory=args.save_output_path, append_timestep=True)
+            if (
+                args.testing is False
+                and args.save_agent
+                and r.episode == args.save_episodes
+            ):
+                r.agent.save_model(
+                    directory=args.save_output_path, append_timestep=True
+                )
 
             logger.info(
                 "Episode {ep} reward: {r}".format(ep=r.episode, r=r.episode_rewards[-1])
@@ -173,7 +186,7 @@ def main():
         episodes=args.episodes,
         max_episode_timesteps=args.max_timesteps,
         episode_finished=episode_finished,
-        deterministic=args.testing
+        deterministic=args.testing,
     )
 
     runner.close()
@@ -193,39 +206,65 @@ def main():
     # plt.figure(2)
     # plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
-    output_path = "./outputs/run_all_8000"   # 7group-800-round/
+    output_path = "./outputs/2group-800-round/"
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     # Plot recorded costs over all episodes
-    print(memory_costs)
-    for i, key in enumerate(memory_costs):
-        plt.figure(i+3)
-        filename = key.split(".")[0]
+    # print(memory)
+    i = 2
+    for file, val in memory.items():
+        i += 1
+        plt.figure(i)
 
-        q = db.get_query_by_filename(filename)
-        postgres_estimate = db.optimizer_cost(q["query"], force_order=False)
-        costs = np.array(memory_costs[key])
+        postgres_estimate = val["postgres_cost"]
+        costs = np.array(val["costs"])
         max_val = max(costs)
         min_val = min(costs)
         plt.xlabel("episode")
         plt.ylabel("cost")
-        plt.title(filename)
-        plt.scatter(np.arange(len(costs)), costs, c="g", alpha=0.5, marker=r'$\ast$',
-                    label="Cost")
-        plt.legend(loc='upper right')
-        plt.scatter(0, [min_val], c="r", alpha=1, marker=r'$\heartsuit$', s=200,
-                    label="min cost observed=" + str(min_val))
-        plt.scatter(0, [max_val], c="b", alpha=1, marker=r'$\times$', s=200,
-                    label="max cost observed=" + str(max_val))
-        plt.legend(loc='upper right')
-        plt.scatter(0, [postgres_estimate], c="c", alpha=1, marker=r'$\star$', s=200,
-                    label="postgreSQL estimate=" + str(postgres_estimate))
-        plt.legend(loc='upper right')
+        plt.title(file)
+        plt.scatter(
+            np.arange(len(costs)),
+            costs,
+            c="g",
+            alpha=0.5,
+            marker=r"$\ast$",
+            label="Cost",
+        )
+        plt.legend(loc="upper right")
+        plt.scatter(
+            0,
+            [min_val],
+            c="r",
+            alpha=1,
+            marker=r"$\heartsuit$",
+            s=200,
+            label="min cost observed=" + str(min_val),
+        )
+        plt.scatter(
+            0,
+            [max_val],
+            c="b",
+            alpha=1,
+            marker=r"$\times$",
+            s=200,
+            label="max cost observed=" + str(max_val),
+        )
+        plt.legend(loc="upper right")
+        plt.scatter(
+            0,
+            [postgres_estimate],
+            c="c",
+            alpha=1,
+            marker=r"$\star$",
+            s=200,
+            label="postgreSQL estimate=" + str(postgres_estimate),
+        )
+        plt.legend(loc="upper right")
 
-        plt.savefig(output_path + filename + '.png')
+        plt.savefig(output_path + file + ".png")
 
     plt.show(block=True)
-    db.close()
 
 
 if __name__ == "__main__":

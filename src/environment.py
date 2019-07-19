@@ -4,6 +4,7 @@ from __future__ import division
 
 from tensorforce.environments import Environment
 from src.state import StateVector
+from src.database import Database
 
 import numpy as np
 import pprint
@@ -11,24 +12,33 @@ import math
 
 
 class ReJoin(Environment):
-    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs, mode, target_group, run_all):
+    def __init__(
+        self,
+        phase,
+        query_to_run,
+        total_episodes,
+        total_groups,
+        memory,
+        mode,
+        target_group,
+        run_all
+    ):
         self.query_to_run = query_to_run
         self.pp = pprint.PrettyPrinter(indent=2)
 
-        self.database = database
-        self.relations = database.relations
-        self.num_relations = len(database.relations)
+        self.database = Database(collect_db_info=True)
+        self.relations = self.database.relations
+        self.num_relations = len(self.database.relations)
 
-        self.attributes = database.attributes
-        self.num_attrs = len(database.attributes)
+        self.attributes = self.database.attributes
+        self.num_attrs = len(self.database.attributes)
 
         self.phase = phase
 
         self.episode_curr = 0
         self.step_curr = 0
         self.memory_actions = []
-        self.memory_rewards = [0]
-        self.memory_costs = memory_costs
+        self.memory = memory
 
         self.query = None
         self.state_vector = None
@@ -42,10 +52,14 @@ class ReJoin(Environment):
             self.target_group = target_group
             self.group_size = None
             self.total_episodes = total_episodes
-            self.total_groups_size = database.get_groups_size(target=self.target_group, num_of_groups=total_groups)
+            self.total_groups_size = self.database.get_groups_size(
+                target=self.target_group, num_of_groups=total_groups
+            )
             self.episodes_per_query = None
             self.episodes_per_group = int(total_episodes / total_groups)
-            self.query_generator = database.get_queries_incremental(target=self.target_group)
+            self.query_generator = self.database.get_queries_incremental(
+                target=self.target_group
+            )
             print("Mode:", self.mode)
 
         self.running_all = run_all
@@ -130,12 +144,12 @@ class ReJoin(Environment):
 
         # Incremental learning - training groups
         elif self.running_groups:
-            if self.episode_curr % self.episodes_per_group == 0:     # Group is over
+            if self.episode_curr % self.episodes_per_group == 0:  # Group is over
                 self.query_group = next(self.query_generator, None)  # Read next group
                 self.it = 0
                 self.group_size = len(self.query_group)
 
-                self.memory_rewards = [0]   # Re-set mean,std
+                # self.memory_rewards = [0]  # Re-set mean,std
 
                 # Number of group episodes is proportional to number of queries in the group
                 p = self.group_size / self.total_groups_size
@@ -146,8 +160,10 @@ class ReJoin(Environment):
 
                 self.episodes_per_query = int(self.episodes_per_group / self.group_size)
                 # print(self.episodes_per_query)
-                if self.query_group is None:     # If groups are over start again
-                    self.query_generator = self.database.get_queries_incremental(target=self.target_group)
+                if self.query_group is None:  # If groups are over start again
+                    self.query_generator = self.database.get_queries_incremental(
+                        target=self.target_group
+                    )
                     self.query_group = next(self.query_generator, None)
                     self.group_size = len(self.query_group)
                     p = self.group_size / self.total_groups_size
@@ -164,18 +180,25 @@ class ReJoin(Environment):
                 self.query = self.query_group[self.it]
                 if self.episodes_per_query == 0:
                     self.it = (self.it + 1) % self.group_size
-                    self.episodes_per_query = int(self.episodes_per_group / self.group_size)
+                    self.episodes_per_query = int(
+                        self.episodes_per_group / self.group_size
+                    )
                 self.episodes_per_query -= 1
 
             # print(self.query)
 
             eps = ""
             if self.mode == "sequential":
-                eps = str(self.episodes_per_query) + "/" + \
-                      str(int(self.episodes_per_group / self.group_size))
+                eps = (
+                    str(self.episodes_per_query)
+                    + "/"
+                    + str(int(self.episodes_per_group / self.group_size))
+                )
             print(
                 "Group: " + str(int(self.query["relations_num"])),
-                ",  File Name: " + self.query["file"], ", ", eps
+                ",  File Name: " + self.query["file"],
+                ", ",
+                eps,
             )
 
         # Ordering queries by increasing number of joins
@@ -190,8 +213,11 @@ class ReJoin(Environment):
             self.query = self.database.get_query_by_filename("1a")
         self.episode_curr += 1
 
-        if self.query["file"] not in self.memory_costs:
-            self.memory_costs[self.query["file"]] = []
+        if self.query["file"] not in self.memory:
+            self.memory[self.query["file"]] = {}
+            self.memory[self.query["file"]]["rewards"] = [0]
+            self.memory[self.query["file"]]["costs"] = []
+            self.memory[self.query["file"]]["postgres_cost"] = self.query["cost"]
 
         self.state_vector = StateVector(
             self.query, self.database.tables, self.relations, self.attributes
@@ -267,19 +293,19 @@ class ReJoin(Environment):
             self.state_vector.aliases,
         )
         cost = self.database.get_reward(constructed_query, self.phase)
-        self.memory_costs[self.query["file"]].append(cost)
+        self.memory[self.query["file"]]["costs"].append(cost)
         reward = 1 / cost * 100000
         # reward **= 2
         # reward = math.exp(reward)
         # print(self.memory_costs)
 
-        r = np.array(self.memory_rewards)
+        r = np.array(self.memory[self.query["file"]]["rewards"])
         mean = r.mean()
         std = r.std()
         print("Mean: ", mean, " Std: ", std)
         reward = (reward - mean) / (std + 0.1)
 
-        self.memory_rewards.append(reward)
+        self.memory[self.query["file"]]["rewards"].append(reward)
         print("Cost: ", round(cost))
         return reward
 
