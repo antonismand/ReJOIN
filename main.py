@@ -61,6 +61,7 @@ def make_args_parser():
     parser.add_argument("-s", "--save_agent", help="Save agent to this dir")
     parser.add_argument("-r", "--restore_agent", help="Restore Agent from this dir")
     parser.add_argument('-t', '--testing', action='store_true', default=False, help="Test agent without learning.")
+    parser.add_argument('-all', '--run_all', action='store_true', default=False, help="Order queries by relations_num")
     parser.add_argument(
         "-se",
         "--save-episodes",
@@ -89,15 +90,16 @@ def main():
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
     # Temporary for quick access
-    args.episodes = 800
+    args.episodes = 7000
     args.testing = False
-    args.groups = 1
-    args.target_group = 5
+    args.groups = 0
+    args.run_all = True
+    args.target_group = None
     args.restore_agent = False
     args.save_agent = True
     args.save_episodes = 100
-    input_path = "./saved_model/group4-110"
-    args.save_output_path = "./saved_model/group5-800-round"
+    input_path = "./saved_model/group6-800"
+    args.save_output_path = "./saved_model/run_all"
 
     # Connect to database
     db = Database(collect_db_info=True)
@@ -107,7 +109,7 @@ def main():
     # Initialize environment (tensorforce's template)
     memory_costs = {}
     environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups,
-                         memory_costs, args.mode, args.target_group)
+                         memory_costs, args.mode, args.target_group, args.run_all)
 
     if args.agent_config is not None:
         with open(args.agent_config, "r") as fp:
@@ -142,8 +144,7 @@ def main():
     def episode_finished(r):
         if r.episode % report_episodes == 0:
 
-            path = "./saved_model/group1-200-round"
-            save_dir = os.path.dirname(path)
+            save_dir = os.path.dirname(args.save_output_path)
             if not os.path.isdir(save_dir):
                 try:
                     os.mkdir(save_dir, 0o755)
@@ -192,7 +193,7 @@ def main():
     # plt.figure(2)
     # plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
-    output_path = "./outputs/2group-800-round/"
+    output_path = "./outputs/run_all_8000"   # 7group-800-round/
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     # Plot recorded costs over all episodes

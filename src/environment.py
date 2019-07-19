@@ -11,7 +11,7 @@ import math
 
 
 class ReJoin(Environment):
-    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs, mode, target_group):
+    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs, mode, target_group, run_all):
         self.query_to_run = query_to_run
         self.pp = pprint.PrettyPrinter(indent=2)
 
@@ -47,6 +47,11 @@ class ReJoin(Environment):
             self.episodes_per_group = int(total_episodes / total_groups)
             self.query_generator = database.get_queries_incremental(target=self.target_group)
             print("Mode:", self.mode)
+
+        self.running_all = run_all
+        if self.running_all :
+            self.it = 0
+            self.query_generator = database.get_queries_incremental_all()
 
     def __str__(self):
         return "ReJOIN"
@@ -123,7 +128,7 @@ class ReJoin(Environment):
         if self.query_to_run != "":
             self.query = self.database.get_query_by_filename(self.query_to_run)
 
-        # Incremental learning - ordering queries by increasing number of joins
+        # Incremental learning - training groups
         elif self.running_groups:
             if self.episode_curr % self.episodes_per_group == 0:     # Group is over
                 self.query_group = next(self.query_generator, None)  # Read next group
@@ -172,6 +177,14 @@ class ReJoin(Environment):
                 "Group: " + str(int(self.query["relations_num"])),
                 ",  File Name: " + self.query["file"], ", ", eps
             )
+
+        # Ordering queries by increasing number of joins
+        elif self.running_all:
+            self.query = next(self.query_generator, None)  # Read next query
+            if self.query is None:
+                self.query_generator = self.database.get_queries_incremental_all()
+                self.query = next(self.query_generator, None)
+            print("File Name: " + self.query["file"])
 
         else:
             self.query = self.database.get_query_by_filename("1a")

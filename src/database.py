@@ -183,6 +183,31 @@ class Database:
 
         return None
 
+    def get_queries_incremental_all(self):
+        cursor = self.conn.cursor()
+
+        attrs = [
+            "id",
+            "file",
+            "relations_num",
+            "query",
+            "moz",
+            "planning",
+            "execution",
+            "cost",
+        ]
+
+        # Yield only queries one by one order by relations_num
+        q = "SELECT * FROM queries ORDER BY relations_num"
+        cursor.execute(q)
+        rows = cursor.fetchall()
+        cursor.close()
+
+        for q in rows:
+            yield dict(zip(attrs, q))
+
+        return None
+
     def get_groups_size(self, target, num_of_groups):
 
         cursor = self.conn.cursor()
