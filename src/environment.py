@@ -11,7 +11,7 @@ import math
 
 
 class ReJoin(Environment):
-    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs, mode):
+    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs, mode, target_group):
         self.query_to_run = query_to_run
         self.pp = pprint.PrettyPrinter(indent=2)
 
@@ -39,12 +39,13 @@ class ReJoin(Environment):
             self.it = 0
             self.mode = mode
             self.query_group = None
+            self.target_group = target_group
             self.group_size = None
             self.total_episodes = total_episodes
-            self.total_groups_size = database.get_groups_size(total_groups)
+            self.total_groups_size = database.get_groups_size(target=self.target_group, num_of_groups=total_groups)
             self.episodes_per_query = None
             self.episodes_per_group = int(total_episodes / total_groups)
-            self.query_generator = database.get_queries_incremental()
+            self.query_generator = database.get_queries_incremental(target=self.target_group)
             print("Mode:", self.mode)
 
     def __str__(self):
@@ -130,6 +131,8 @@ class ReJoin(Environment):
                 self.it = 0
                 self.group_size = len(self.query_group)
 
+                self.memory_rewards = [0]   # Re-set mean,std
+
                 # Number of group episodes is proportional to number of queries in the group
                 p = self.group_size / self.total_groups_size
                 print(self.total_groups_size)
@@ -140,7 +143,7 @@ class ReJoin(Environment):
                 self.episodes_per_query = int(self.episodes_per_group / self.group_size)
                 # print(self.episodes_per_query)
                 if self.query_group is None:     # If groups are over start again
-                    self.query_generator = self.database.get_queries_incremental()
+                    self.query_generator = self.database.get_queries_incremental(target=self.target_group)
                     self.query_group = next(self.query_generator, None)
                     self.group_size = len(self.query_group)
                     p = self.group_size / self.total_groups_size

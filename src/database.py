@@ -87,7 +87,7 @@ class Database:
         relations_attributes = {}
         relations = []
         relations_tables = {}
-        x = self.get_queries_incremental()
+        x = self.get_queries_incremental(target="")
         for group in x:
             for q in group:
                 for r in q["moz"]["from"]:
@@ -140,12 +140,9 @@ class Database:
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
 
-    def get_queries_incremental(self):
+    def get_queries_incremental(self, target):
         cursor = self.conn.cursor()
-        q = "SELECT * FROM queries ORDER BY relations_num"
-        cursor.execute(q)
-        rows = cursor.fetchall()
-        cursor.close()
+
         attrs = [
             "id",
             "file",
@@ -156,6 +153,19 @@ class Database:
             "execution",
             "cost",
         ]
+
+        # Yield all groups one by one
+        if target == "":
+            q = "SELECT * FROM queries ORDER BY relations_num"
+            cursor.execute(q)
+
+        # Yield only one target group
+        else:
+            q = "SELECT * FROM queries WHERE relations_num=%s"
+            cursor.execute(q, (str(target),))
+
+        rows = cursor.fetchall()
+        cursor.close()
 
         qs = {}
         for q in rows:
@@ -169,17 +179,28 @@ class Database:
         keys = list(qs.keys())
         keys.sort()
         for key in keys:
-            yield qs[key]  # group
+            yield qs[key]
 
         return None
 
-    def get_groups_size(self, num_of_groups):
+    def get_groups_size(self, target, num_of_groups):
+
         cursor = self.conn.cursor()
-        q = (
-            "select sum(count) from (select relations_num, count(*) "
-            "as count from queries group by relations_num order by relations_num limit  %s) X"
-        )
-        cursor.execute(q, (str(num_of_groups),))
+
+        # Size of a specific group
+        if target != "":
+            q = (
+                "select sum(count) from (select relations_num, count(*) "
+                "as count from queries group by relations_num order by relations_num limit  %s) X"
+            )
+            cursor.execute(q, (str(num_of_groups),))
+        # Size of groups 1 to num_of_groups
+        else:
+            q = (
+                "select count(*) from queries where relations_num=%s"
+            )
+            cursor.execute(q, (str(target),))
+
         row = cursor.fetchone()
         cursor.close()
         return row[0]

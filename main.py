@@ -20,8 +20,6 @@ import time
 import os
 import json
 
-# sys.argv = [""]
-
 
 def make_args_parser():
     parser = argparse.ArgumentParser()
@@ -34,36 +32,38 @@ def make_args_parser():
     parser.add_argument(
         "-n",
         "--network-spec",
-        default="config/mlp2-network.json",
+        default="config/complex-network.json",
         help="Network specification file",
     )
     parser.add_argument(
-        "-rap",
-        "--repeat-action-probability",
-        help="Repeat action probability",
-        type=float,
-        default=0.0,
-    )
-    parser.add_argument(
-        "-e", "--episodes", type=int, default=800, help="Number of episodes"
+        "-e", "--episodes", type=int, default=3, help="Number of episodes"
     )
     parser.add_argument(
         "-g",
         "--groups",
         type=int,
-        default=2,
+        default=1,
         help="Total groups of different number of relations",
+    )
+    parser.add_argument(
+        "-tg",
+        "--target_group",
+        type=int,
+        default=4,
+        help="A specific group",
     )
     parser.add_argument("-m", "--mode", type=str, default="round", help="Incremental Mode")
     parser.add_argument(
-        "-t",
+        "-ti",
         "--max-timesteps",
         type=int,
         default=20,
         help="Maximum number of timesteps per episode",
     )
     parser.add_argument("-q", "--query", default="", help="Run specific query")
-    parser.add_argument("-s", "--save", help="Save agent to this dir")
+    parser.add_argument("-s", "--save_agent", help="Save agent to this dir")
+    parser.add_argument("-r", "--restore_agent", help="Restore Agent from this dir")
+    parser.add_argument('-t', '--testing', action='store_true', default=False, help="Test agent without learning.")
     parser.add_argument(
         "-se",
         "--save-episodes",
@@ -71,7 +71,6 @@ def make_args_parser():
         default=100,
         help="Save agent every x episodes",
     )
-    parser.add_argument("-l", "--load", help="Load agent from this dir")
     parser.add_argument("-p", "--phase", help="Select phase (1 or 2)", default=1)
 
     return parser.parse_args()
@@ -93,13 +92,13 @@ def main():
 
     # Connect to database
     db = Database(collect_db_info=True)
-    # get_times()
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
     # Initialize environment (tensorforce's template)
     memory_costs = {}
-    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups, memory_costs, args.mode)
+    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups,
+                         memory_costs, args.mode, args.target_group)
 
     if args.agent_config is not None:
         with open(args.agent_config, "r") as fp:
@@ -113,96 +112,51 @@ def main():
     else:
         raise TensorForceError("No network configuration provided.")
 
-    dims = 128
-    # dims1 = 1024
-    # Todo: Pass this via JSON
-    network_spec = [
-        [
-            dict(type="input", names=["tree_structure"]),
-            # dict(type="flatten"),
-            dict(type="dense", size=dims, activation="relu"),
-            dict(type="output", name="tree_structure_emb"),
-        ],
-        [
-            dict(type="input", names=["join_predicates"]),
-            # dict(type="flatten"),
-            dict(type="dense", size=dims, activation="relu"),
-            dict(type="output", name="join_predicates_emb"),
-        ],
-        [
-            dict(type="input", names=["selection_predicates"]),
-            dict(type="dense", size=dims, activation="relu"),
-            dict(type="output", name="selection_predicates_emb"),
-        ],
-        [
-            dict(
-                type="input",
-                names=[
-                    "tree_structure_emb",
-                    "join_predicates_emb",
-                    "selection_predicates_emb",
-                ],
-            ),
-            dict(type="dense", size=dims, activation="relu"),
-            dict(type="dense", size=dims, activation="relu"),
-            # dict(type='dueling', size=3, activation='none'),
-            dict(type="output", name="prediction"),
-        ],
-    ]
-
     # Set up the PPO Agent
-    agent = PPOAgent(
-        states=environment.states,
-        actions=environment.actions,
-        network=network_spec,
-        step_optimizer=dict(type="adam", learning_rate=1e-3),
-        update_mode=dict(units="episodes", batch_size=64, frequency=4),
-        memory=dict(type='replay', include_next_states=False, capacity=10000),
-        summarizer=dict(
-            directory="./board",
-            steps=50,
-            labels=[
-                "graph",
-                "gradients_scalar",
-                "regularization",
-                "inputs",
-                "losses",
-                "variables"
-            ]
-        )
-
+    agent = Agent.from_spec(
+        spec=agent_config,
+        kwargs=dict(
+            states=environment.states,
+            actions=environment.actions,
+            network=network_spec
+        ),
     )
 
-    # agent = Agent.from_spec(
-    #     spec=agent_config,
-    #     kwargs=dict(
-    #         states=environment.states, actions=environment.actions, network=network_spec
-    #     ),
-    # )
+    # Temporary for quick access
+    args.testing = True
+    args.episodes = 3
+    args.groups = 1
+    args.target_group = 1
+    args.restore_agent = True
+    args.save_agent = False
+    args.save_episodes = 100
+    args.save_output_path = "./saved_model/group1-200-round"
+    if args.restore_agent:
+        agent.restore_model(directory="./saved_model/")
+    ##############################################################
 
     runner = Runner(agent=agent, environment=environment)
-
     # ~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~ #
 
     report_episodes = 1
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            # sps = r.timestep / (time.time() - r.start_time)
-            # logger.info(
-            #     "Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(
-            #         ep=r.episode, ts=r.timestep, sps=sps
-            #     )
-            # )
+
+            path = "./saved_model/group1-200-round"
+            save_dir = os.path.dirname(path)
+            if not os.path.isdir(save_dir):
+                try:
+                    os.mkdir(save_dir, 0o755)
+                except OSError:
+                    raise OSError("Cannot save agent to dir {} ()".format(save_dir))
+
+            if args.testing is False and args.save_agent and r.episode == args.save_episodes:
+                r.agent.save_model(directory=args.save_output_path, append_timestep=True)
 
             logger.info(
                 "Episode {ep} reward: {r}".format(ep=r.episode, r=r.episode_rewards[-1])
             )
-            # logger.info(
-            #     "Average of last 500 rewards: {}".format(
-            #         sum(r.episode_rewards[-500:]) / 500
-            #     )
-            # )
             logger.info(
                 "Average of last 100 rewards: {}\n".format(
                     sum(r.episode_rewards[-100:]) / 100
@@ -214,19 +168,17 @@ def main():
         "Starting {agent} for Environment '{env}'".format(agent=agent, env=environment)
     )
 
-    # Start Training
+    # Start training or testing
     runner.run(
         episodes=args.episodes,
         max_episode_timesteps=args.max_timesteps,
         episode_finished=episode_finished,
+        deterministic=args.testing
     )
 
     runner.close()
     logger.info("Learning finished. Total episodes: {ep}".format(ep=runner.episode))
 
-    # environment.close()
-    # print(runner.episode_rewards)
-    # print(len(runner.episode_rewards))
     def find_convergence(eps):
         last = eps[-1]
         for i in range(1, len(eps)):
@@ -235,11 +187,11 @@ def main():
                 return True
 
     find_convergence(runner.episode_rewards)
-    plt.figure(1)
-    plt.hist(runner.episode_rewards)
-
-    plt.figure(2)
-    plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
+    # plt.figure(1)
+    # plt.hist(runner.episode_rewards)
+    #
+    # plt.figure(2)
+    # plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
     output_path = "./outputs/2group-800-round/"
     if not os.path.exists(output_path):
