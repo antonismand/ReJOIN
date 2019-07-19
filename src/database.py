@@ -20,7 +20,9 @@ class Database:
         # - attributes
 
         if collect_db_info:
-            self.tables, self.relations, self.relations_attributes = self.get_relations_attributes()
+            self.tables, self.relations, self.relations_attributes, self.relations_tables = (
+                self.get_relations_attributes()
+            )
             self.attributes = []
             for k in self.relations_attributes:
                 self.attributes = self.attributes + [
@@ -32,16 +34,16 @@ class Database:
     def connect(self):
         try:
             conn_string = (
-                    "host="
-                    + creds.PGHOST
-                    + " port="
-                    + "5432"
-                    + " dbname="
-                    + creds.PGDATABASE
-                    + " user="
-                    + creds.PGUSER
-                    + " password="
-                    + creds.PGPASSWORD
+                "host="
+                + creds.PGHOST
+                + " port="
+                + "5432"
+                + " dbname="
+                + creds.PGDATABASE
+                + " user="
+                + creds.PGUSER
+                + " password="
+                + creds.PGPASSWORD
             )
             conn = psycopg2.connect(conn_string)
             return conn
@@ -84,7 +86,7 @@ class Database:
         tables = list(tables_attributes.keys())
         relations_attributes = {}
         relations = []
-
+        relations_tables = {}
         x = self.get_queries_incremental()
         for group in x:
             for q in group:
@@ -92,7 +94,8 @@ class Database:
                     if r["name"] not in relations:
                         relations.append(r["name"])
                         relations_attributes[r["name"]] = tables_attributes[r["value"]]
-        return tables, relations, relations_attributes
+                        relations_tables[r["name"]] = r["value"]
+        return tables, relations, relations_attributes, relations_tables
 
     def print_relations_attrs(self):
         pp = pprint.PrettyPrinter(indent=2)
@@ -104,10 +107,18 @@ class Database:
         cursor.execute(q, (str(id),))
         rows = cursor.fetchone()
         cursor.close()
-        attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
+        attrs = [
+            "id",
+            "file",
+            "relations_num",
+            "query",
+            "moz",
+            "planning",
+            "execution",
+            "cost",
+        ]
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
-
 
     def get_query_by_filename(self, file):
         file = file + ".sql"
@@ -116,7 +127,16 @@ class Database:
         cursor.execute(q, (file,))
         rows = cursor.fetchone()
         cursor.close()
-        attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
+        attrs = [
+            "id",
+            "file",
+            "relations_num",
+            "query",
+            "moz",
+            "planning",
+            "execution",
+            "cost",
+        ]
         zipbObj = zip(attrs, rows)
         return dict(zipbObj)
 
@@ -126,7 +146,16 @@ class Database:
         cursor.execute(q)
         rows = cursor.fetchall()
         cursor.close()
-        attrs = ["id", "file", "relations_num", "query", "moz", "planning", "execution", "cost"]
+        attrs = [
+            "id",
+            "file",
+            "relations_num",
+            "query",
+            "moz",
+            "planning",
+            "execution",
+            "cost",
+        ]
 
         qs = {}
         for q in rows:
@@ -146,8 +175,10 @@ class Database:
 
     def get_groups_size(self, num_of_groups):
         cursor = self.conn.cursor()
-        q = "select sum(count) from (select relations_num, count(*) " \
+        q = (
+            "select sum(count) from (select relations_num, count(*) "
             "as count from queries group by relations_num order by relations_num limit  %s) X"
+        )
         cursor.execute(q, (str(num_of_groups),))
         row = cursor.fetchone()
         cursor.close()
@@ -167,7 +198,7 @@ class Database:
 
     def optimizer_cost(self, query, force_order=False):
         join_collapse_limit = "SET join_collapse_limit = "
-        join_collapse_limit += "1" if force_order else "20"
+        join_collapse_limit += "1" if force_order else "8"
         query = join_collapse_limit + ";EXPLAIN (FORMAT JSON) " + query + ";"
         cursor = self.conn.cursor()
         cursor.execute(query)
@@ -177,7 +208,7 @@ class Database:
 
     def get_query_time(self, query, force_order=False):
         join_collapse_limit = "SET join_collapse_limit = "
-        join_collapse_limit += "1" if force_order else "20"
+        join_collapse_limit += "1" if force_order else "8"
         query = join_collapse_limit + ";EXPLAIN ANALYZE " + query + ";"
         cursor = self.conn.cursor()
         cursor.execute(query)
@@ -194,7 +225,9 @@ class Database:
         except ValueError:
             return False
 
-    def construct_query(self, query_ast, join_ordering, attrs, joined_attrs, alias_to_relations, aliases):
+    def construct_query(
+        self, query_ast, join_ordering, attrs, joined_attrs, alias_to_relations, aliases
+    ):
 
         relations_to_alias = {}
 
@@ -224,16 +257,34 @@ class Database:
         self.counter = 0
         return query
 
-    def recursive_construct(self, subtree, attrs, joined_attrs, relations_to_alias, alias_to_relations, aliases):
+    def recursive_construct(
+        self,
+        subtree,
+        attrs,
+        joined_attrs,
+        relations_to_alias,
+        alias_to_relations,
+        aliases,
+    ):
 
         if isinstance(subtree, str):
             return subtree, subtree
 
         left, left_alias = self.recursive_construct(
-            subtree[0], attrs, joined_attrs, relations_to_alias, alias_to_relations, aliases
+            subtree[0],
+            attrs,
+            joined_attrs,
+            relations_to_alias,
+            alias_to_relations,
+            aliases,
         )
         right, right_alias = self.recursive_construct(
-            subtree[1], attrs, joined_attrs, relations_to_alias, alias_to_relations, aliases
+            subtree[1],
+            attrs,
+            joined_attrs,
+            relations_to_alias,
+            alias_to_relations,
+            aliases,
         )
 
         new_alias = "J" + str(self.counter)
@@ -262,22 +313,22 @@ class Database:
         )
 
         subquery = (
-                "( SELECT "
-                + clause
-                + " FROM "
-                + left
-                + " JOIN "
-                + right
-                + " on "
-                + left_alias
-                + "."
-                + attr1
-                + " = "
-                + right_alias
-                + "."
-                + attr2
-                + ") "
-                + new_alias
+            "( SELECT "
+            + clause
+            + " FROM "
+            + left
+            + " JOIN "
+            + right
+            + " on "
+            + left_alias
+            + "."
+            + attr1
+            + " = "
+            + right_alias
+            + "."
+            + attr2
+            + ") "
+            + new_alias
         )
 
         self.update_joined_attrs((left_alias, right_alias), new_alias, joined_attrs)
@@ -315,7 +366,9 @@ class Database:
                 del joined_attrs[(t1, t2)]
                 joined_attrs[(rel1, rel2)] = (attr1, attr2)
 
-    def select_clause(self, alias_to_relations, left_alias, right_alias, attrs, aliases):
+    def select_clause(
+        self, alias_to_relations, left_alias, right_alias, attrs, aliases
+    ):
 
         # print("\n\nSelect Clause:\n")
 
@@ -338,7 +391,9 @@ class Database:
 
         return select_clause
 
-    def recursive_select_clause(self, clause, path, alias_to_relations, alias, attrs, base_alias, aliases):
+    def recursive_select_clause(
+        self, clause, path, alias_to_relations, alias, attrs, base_alias, aliases
+    ):
 
         # print(alias)
         rels = alias_to_relations[alias]

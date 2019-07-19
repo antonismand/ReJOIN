@@ -36,7 +36,7 @@ query = (
 
 pp = pprint.PrettyPrinter(indent=2)
 
-db = Database()
+db = Database(True)
 # query = db.get_query_by_id(1)
 
 
@@ -141,3 +141,42 @@ print("------------------------------------------\n\n")
 #     'D': ['D']
 #     # e.g. 'J1': {"A", "B"} etc
 # }
+
+
+s = {}
+
+s["aka_title"] = 1
+s["char_name"] = 1
+s["role_type"] = 1
+
+s["comp_cast_type"] = 1
+s["movie_link"] = 2
+s["link_type"] = 1
+s["cast_info"] = 4
+
+s["complete_cast"] = 2
+s["title"] = 9
+s["aka_name"] = 2
+
+s["movie_companies"] = 3
+s["kind_type"] = 1
+s["name"] = 2
+
+
+s["company_type"] = 1
+s["movie_keyword"] = 2
+s["movie_info"] = 2
+s["person_info"] = 2
+
+s["company_name"] = 1
+s["keyword"] = 1
+s["movie_info_idx"] = 2
+s["info_type"] = 3
+
+c = 0
+# for k, v in s.items():
+#     c += v
+for alias, table in db.relations_tables.items():
+    c += s[table]
+c /= 2
+print("Total possible joins", c)
