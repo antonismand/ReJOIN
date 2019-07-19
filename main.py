@@ -17,6 +17,7 @@ import argparse
 import logging
 import sys
 import time
+import os
 import json
 
 # sys.argv = [""]
@@ -44,15 +45,16 @@ def make_args_parser():
         default=0.0,
     )
     parser.add_argument(
-        "-e", "--episodes", type=int, default=10, help="Number of episodes"
+        "-e", "--episodes", type=int, default=400, help="Number of episodes"
     )
     parser.add_argument(
         "-g",
         "--groups",
         type=int,
-        default=0,
+        default=1,
         help="Total groups of different number of relations",
     )
+    parser.add_argument("-m", "--mode", type=str, default="round", help="Incremental Mode")
     parser.add_argument(
         "-t",
         "--max-timesteps",
@@ -60,7 +62,7 @@ def make_args_parser():
         default=20,
         help="Maximum number of timesteps per episode",
     )
-    parser.add_argument("-q", "--query", default="7b", help="Run specific query")
+    parser.add_argument("-q", "--query", default="", help="Run specific query")
     parser.add_argument("-s", "--save", help="Save agent to this dir")
     parser.add_argument(
         "-se",
@@ -97,7 +99,7 @@ def main():
 
     # Initialize environment (tensorforce's template)
     memory_costs = {}
-    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups, memory_costs )
+    environment = ReJoin(db, args.phase, args.query, args.episodes, args.groups, memory_costs, args.mode)
 
     if args.agent_config is not None:
         with open(args.agent_config, "r") as fp:
@@ -154,7 +156,7 @@ def main():
         actions=environment.actions,
         network=network_spec,
         step_optimizer=dict(type="adam", learning_rate=1e-3),
-        update_mode=dict(units="episodes", batch_size=32, frequency=4),
+        update_mode=dict(units="episodes", batch_size=64, frequency=4),
         memory=dict(type='replay', include_next_states=False, capacity=10000),
         summarizer=dict(
             directory="./board",
@@ -168,13 +170,8 @@ def main():
                 "variables"
             ]
         )
-        # distributions=dict(action=dict(type=CustomCategorical)),
-        # exploration = dict(
-            # type='ornstein_uhlenbeck',
-            # sigma=0.3,
-            # mu=0.0,
-            # theta=0.15)
-        )
+
+    )
 
     # agent = Agent.from_spec(
     #     spec=agent_config,
@@ -191,7 +188,7 @@ def main():
 
     def episode_finished(r):
         if r.episode % report_episodes == 0:
-            sps = r.timestep / (time.time() - r.start_time)
+            # sps = r.timestep / (time.time() - r.start_time)
             # logger.info(
             #     "Finished episode {ep} after {ts} timesteps. Steps Per Second {sps}".format(
             #         ep=r.episode, ts=r.timestep, sps=sps
@@ -244,21 +241,24 @@ def main():
     plt.figure(2)
     plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
+    output_path = "./outputs/1group-400-round/"
+    if not os.path.exists(output_path):
+        os.makedirs(output_path)
     # Plot recorded costs over all episodes
     print(memory_costs)
     for i, key in enumerate(memory_costs):
         plt.figure(i+3)
+        filename = key.split(".")[0]
 
-        q = db.get_query_by_filename(key.split(".")[0])
+        q = db.get_query_by_filename(filename)
         postgres_estimate = db.optimizer_cost(q["query"], force_order=False)
         costs = np.array(memory_costs[key])
         max_val = max(costs)
         min_val = min(costs)
-        t = np.arange(args.episodes)
         plt.xlabel("episode")
         plt.ylabel("cost")
-        plt.title(key)
-        plt.scatter(t, costs, c="g", alpha=0.5, marker=r'$\ast$',
+        plt.title(filename)
+        plt.scatter(np.arange(len(costs)), costs, c="g", alpha=0.5, marker=r'$\ast$',
                     label="Cost")
         plt.legend(loc='upper right')
         plt.scatter(0, [min_val], c="r", alpha=1, marker=r'$\heartsuit$', s=200,
@@ -269,6 +269,9 @@ def main():
         plt.scatter(0, [postgres_estimate], c="c", alpha=1, marker=r'$\star$', s=200,
                     label="postgreSQL estimate=" + str(postgres_estimate))
         plt.legend(loc='upper right')
+
+        plt.savefig(output_path + filename + '.png')
+
     plt.show(block=True)
     db.close()
 

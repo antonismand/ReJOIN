@@ -11,7 +11,7 @@ import math
 
 
 class ReJoin(Environment):
-    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs):
+    def __init__(self, database, phase, query_to_run, total_episodes, total_groups, memory_costs, mode):
         self.query_to_run = query_to_run
         self.pp = pprint.PrettyPrinter(indent=2)
 
@@ -37,10 +37,14 @@ class ReJoin(Environment):
         self.running_groups = total_groups != 0
         if total_groups != 0:
             self.it = 0
+            self.mode = mode
             self.query_group = None
+            self.group_size = None
+            self.episodes_per_query = None
             self.episodes_per_group = int(total_episodes / total_groups)
-            print("Episodes per group", self.episodes_per_group)
             self.query_generator = database.get_queries_incremental()
+            print("\nEpisodes per group:", self.episodes_per_group)
+            print("Mode:", self.mode)
 
     def __str__(self):
         return "ReJOIN"
@@ -120,19 +124,38 @@ class ReJoin(Environment):
 
         # Incremental learning - ordering queries by increasing number of joins
         elif self.running_groups:
-            if self.episode_curr % self.episodes_per_group == 0:  # Group is over
-                self.query_group = next(self.query_generator, None)
+            if self.episode_curr % self.episodes_per_group == 0:     # Group is over
+                self.query_group = next(self.query_generator, None)  # Read next group
                 self.it = 0
-                if self.query_group is None:
+                self.group_size = len(self.query_group)
+                self.episodes_per_query = int(self.episodes_per_group / self.group_size)
+                if self.query_group is None:     # If groups are over start again
                     self.query_generator = self.database.get_queries_incremental()
                     self.query_group = next(self.query_generator, None)
 
-            self.query = self.query_group[self.it]
-            self.it = (self.it + 1) % len(self.query_group)
+            # <Episodes per group> iterations
+            if self.mode == "round":
+                # 1) round robbins [1a,2a,3a, 1a,2a,3a,...]
+                self.query = self.query_group[self.it]
+                self.it = (self.it + 1) % self.group_size
+
+            elif self.mode == "sequential":
+                # 2) sequentially [1a,1a,1a,..,2a,2a,2a,..,3a,3a,3a,..]
+                self.query = self.query_group[self.it]
+                if self.episodes_per_query == 0:
+                    self.it = (self.it + 1) % self.group_size
+                    self.episodes_per_query = int(self.episodes_per_group / self.group_size)
+                self.episodes_per_query -= 1
+
             # print(self.query)
+
+            eps = ""
+            if self.mode == "sequential":
+                eps = str(self.episodes_per_query) + "/" + \
+                      str(int(self.episodes_per_group / self.group_size))
             print(
                 "Group: " + str(int(self.query["relations_num"])),
-                ",  File Name:" + self.query["file"],
+                ",  File Name: " + self.query["file"], ", ", eps
             )
 
         else:
