@@ -94,16 +94,18 @@ def main():
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
     # Temporary for quick access
-    args.episodes = 10
+    args.episodes = 9000
     args.testing = False
     args.groups = 0
     args.run_all = True
-    args.target_group = None
+    args.target_group = 0
     args.restore_agent = False
     args.save_agent = True
-    args.save_episodes = 100
+    args.save_episodes = 1000
     input_path = "./saved_model/group4-110"
-    args.save_output_path = "./saved_model/group5-800-round"
+    args.save_output_path = "./saved_model/run_all"
+    output_path = "./outputs/run_all/"
+
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
@@ -206,7 +208,6 @@ def main():
     # plt.figure(2)
     # plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
-    output_path = "./outputs/2group-800-round/"
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     # Plot recorded costs over all episodes

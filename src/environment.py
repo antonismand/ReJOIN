@@ -63,9 +63,8 @@ class ReJoin(Environment):
             print("Mode:", self.mode)
 
         self.running_all = run_all
-        if self.running_all :
-            self.it = 0
-            self.query_generator = database.get_queries_incremental_all()
+        if self.running_all:
+            self.query_generator = self.database.get_queries_incremental_all()
 
     def __str__(self):
         return "ReJOIN"
