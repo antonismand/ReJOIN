@@ -43,7 +43,7 @@ def make_args_parser():
         help="Total groups of different number of relations",
     )
     parser.add_argument(
-        "-tg", "--target_group", type=int, default=5, help="A specific group"
+        "-tg", "--target_group", type=int, default=4, help="A specific group"
     )
     parser.add_argument(
         "-m", "--mode", type=str, default="round", help="Incremental Mode"
@@ -56,8 +56,10 @@ def make_args_parser():
         help="Maximum number of timesteps per episode",
     )
     parser.add_argument("-q", "--query", default="", help="Run specific query")
-    parser.add_argument("-s", "--save_agent", help="Save agent to this dir")
-    parser.add_argument("-r", "--restore_agent", help="Restore Agent from this dir")
+    parser.add_argument("-s", "--save_agent", default="", help="Save agent to this dir")
+    parser.add_argument("-r", "--restore_agent", default="", help="Restore Agent from this dir")
+    parser.add_argument("-o", "--outputs", default="./outputs/", help="Restore Agent from this dir")
+
     parser.add_argument(
         "-t",
         "--testing",
@@ -103,12 +105,11 @@ def main():
     # args.target_group = 7
     # args.restore_agent = True
     #
-    # args.save_agent = True
-    # args.save_output_path = "./saved_model/" + path
+    # args.save_agent =./saved_model/" + path
 
-    input_path = "./saved_model/" + "V3/group7-1000/"
-    path = "V3/group7-1500/"
-    output_path = "./outputs/" + path
+    # input_path = "./saved_model/" + "V3/group7-1000/"
+    # path = "V3/group7-1500/"
+    # output_path = "./outputs/" + path
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
@@ -146,8 +147,8 @@ def main():
         ),
     )
 
-    if args.restore_agent:
-        agent.restore_model(directory=input_path)
+    if args.restore_agent != "":
+        agent.restore_model(directory=args.restore_agent)
 
     runner = Runner(agent=agent, environment=environment)
     # ~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~~~~~ ~~~~~~~~~~~~~~~~~ #
@@ -157,21 +158,17 @@ def main():
     def episode_finished(r):
         if r.episode % report_episodes == 0:
 
-            save_dir = os.path.dirname(args.save_output_path)
-            if not os.path.isdir(save_dir):
-                try:
-                    os.mkdir(save_dir, 0o755)
-                except OSError:
-                    raise OSError("Cannot save agent to dir {} ()".format(save_dir))
+            if args.save_agent != "" and args.testing is False and r.episode == args.save_episodes:
+                save_dir = os.path.dirname(args.save_agent)
+                if not os.path.isdir(save_dir):
+                    try:
+                        os.mkdir(save_dir, 0o755)
+                    except OSError:
+                        raise OSError("Cannot save agent to dir {} ()".format(save_dir))
 
-            if (
-                args.testing is False
-                and args.save_agent
-                and r.episode == args.save_episodes
-            ):
-                r.agent.save_model(
-                    directory=args.save_output_path, append_timestep=True
-                )
+                    r.agent.save_model(
+                        directory=args.save_agent, append_timestep=True
+                    )
 
             logger.info(
                 "Episode {ep} reward: {r}".format(ep=r.episode, r=r.episode_rewards[-1])
@@ -212,8 +209,8 @@ def main():
     # plt.figure(2)
     # plt.plot(runner.episode_rewards, "b.", MarkerSize=2)
 
-    if not os.path.exists(output_path):
-        os.makedirs(output_path)
+    if not os.path.exists(args.outputs):
+        os.makedirs(args.outputs)
     # Plot recorded costs over all episodes
     # print(memory)
     i = 2
@@ -267,7 +264,7 @@ def main():
         )
         plt.legend(loc="upper right")
 
-        plt.savefig(output_path + file + ".png")
+        plt.savefig(args.outputs + file + ".png")
 
     plt.show(block=True)
 

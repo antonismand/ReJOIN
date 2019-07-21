@@ -5,6 +5,26 @@ An implementation of ReJOIN: a learned join ordering optimizer, as described in 
 * [Rejoin: Hands-Free Query Optimizer through Deep Learning - Ryan Marcus & Olga Papaemmanouil](https://www.cs.brandeis.edu/~olga/publications/HandsFreeCIDR19.pdf)
 * [Deep Reinforcement Learning for Joining Enumaration - Ryan Marcus & Olga Papaemmanouil](https://www.cs.brandeis.edu/~olga/publications/ReJOIN_aiDM18.pdf)
 
+## Some experiments
+- https://drive.google.com/open?id=1bOBtplkxfGXGRWmib4WYMotjJ47fGz2C
+
+
+## Some Running examples
+
+- Train target group 4 for 200 episodes
+sudo python3 main.py -e 200 -g 1 -tg 4 -se 100 -s ./saved_model/group4-200/
+
+Now the plots are in ./outputs folder (default) and the model in  ./saved_model/ 
+
+- Restore saved model and test group 4 
+sudo python3 main.py -e 3 -g 1 -tg 4 -r ./saved_model/group4-200/ --testing -o ./outputs/testing/
+
+
+- Restore saved model and keep training on group 5 for 500 episodes
+sudo python3 main.py -e 200 -g 1 -tg 5 -se 100 -r ./saved_model/group4-200/ -s ./saved_model/group5-500/
+
+
+
 ## Program parameters
 
 - Agent configuration file  
