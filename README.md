@@ -17,27 +17,22 @@ An implementation of ReJOIN: a learned join ordering optimizer, as described in 
 
 - Number of episodes  
     "-e", "--episodes"  
-    type=int  
     default=800  
 
 - Total groups of different number of relations  
     "-g", "--groups"  
-    type=int  
     default=1  
 
-- A specific group  
+- Run specific group  
     "-tg", "--target_group"  
-    type=int  
     default=5  
 
 - Incremental Mode  
     "-m", "--mode"  
-    type=str  
     default="round"  
 
 - Maximum number of timesteps per episode  
     "-ti", "--max-timesteps"  
-    type=int  
     default=20  
 
 - Run specific query  
@@ -50,21 +45,23 @@ An implementation of ReJOIN: a learned join ordering optimizer, as described in 
 - Restore Agent from this dir  
     "-r", "--restore_agent"  
 
-- Test agent without learning  
+- Test agent without learning (use deterministic) 
     "-t", "--testing"  
     action="store_true"  
     default=False  
 
 - Order queries by relations_num  
     "-all", "--run_all"  
-    action="store_true"  
     default=False  
 
 - Save agent every x episodes  
     "-se", "--save-episodes"  
-    type=int  
     default=100  
 
 - Select phase (1 or 2)  
     "-p", "--phase"  
-    default=1
+    default=1  
+    
+## Running examples
+- Execute a single query `python main.py --query 3a --episodes 150`
+    
