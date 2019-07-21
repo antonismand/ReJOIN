@@ -93,19 +93,22 @@ def main():
     logger.setLevel(logging.DEBUG)
     logger.addHandler(logging.StreamHandler(sys.stdout))
 
-    # Temporary for quick access
-    args.episodes = 9000
-    args.testing = False
-    args.groups = 0
-    args.run_all = True
-    args.target_group = 0
-    args.restore_agent = False
-    args.save_agent = True
-    args.save_episodes = 1000
-    input_path = "./saved_model/group4-110"
-    args.save_output_path = "./saved_model/run_all"
-    output_path = "./outputs/run_all/"
+    # # Temporary for quick access
+    # args.groups = 1
+    # args.run_all = False
+    #
+    # args.episodes = 501
+    # args.save_episodes = 3500
+    # args.testing = False
+    # args.target_group = 7
+    # args.restore_agent = True
+    #
+    # args.save_agent = True
+    # args.save_output_path = "./saved_model/" + path
 
+    input_path = "./saved_model/" + "V3/group7-1000/"
+    path = "V3/group7-1500/"
+    output_path = "./outputs/" + path
 
     # ~~~~~~~~~~~~~~~~~ Setting up the Model ~~~~~~~~~~~~~~~~~ #
 
@@ -138,7 +141,8 @@ def main():
     agent = Agent.from_spec(
         spec=agent_config,
         kwargs=dict(
-            states=environment.states, actions=environment.actions, network=network_spec
+            states=environment.states, actions=environment.actions, network=network_spec,
+            variable_noise=0.5
         ),
     )
 

@@ -16,6 +16,13 @@
         "type": "adam",
         "learning_rate": 1e-3
     },
+    "actions_exploration": {
+        "type": "epsilon_anneal",
+        "initial_epsilon": 0.5,
+        "final_epsilon": 0.0,
+        "timesteps": 10000
+    },
+
     "summarizer": {
         "directory": "./board",
         "steps": 50,

@@ -1,13 +1,4 @@
 from src.database import Database
-from src.state import StateVector
-from moz_sql_parser import parse
-import pprint
-import math
-import numpy as np
-import matplotlib.pyplot as plt
-import os
-
-
 
 # """
 # A "main" created for testing purposes
@@ -16,9 +7,6 @@ import os
 # # [[ci,at], an]
 # query = "SELECT ci.id AS id FROM cast_info AS ci, aka_title AS at, aka_name AS an " \
 #         "WHERE ci.movie_id=at.movie_id AND ci.person_id=an.person_id LIMIT 5;"
-#
-#
-#
 #
 # # query = '''
 # # SELECT MIN(cn.name) AS from_company,
@@ -34,29 +22,6 @@ import os
 # #   AND ml.movie_id = t.id
 # #   AND t.id = mk.movie_id;
 # # '''
-#
-# # dataset = "./join-order-benchmark/queries"
-# # cwd = os.getcwd()
-# # files = os.listdir(os.path.join(cwd, *dataset.split("/")))
-# pp = pprint.PrettyPrinter(indent=2)
-# #
-# # file = open(dataset + "/" + "7a.sql", "r")
-# # query = file.read()
-# # ast = parse(query)
-# # pp.pprint(ast)
-#
-# db = Database(False)
-# print("A")
-# x = db.get_queries_incremental()
-# for i in range(0, 50):
-#     a = next(x, None)
-#
-#     if a is None:
-#         x = db.get_queries_incremental()
-#         a = next(x, None)
-#
-#         print(a)
-#
 #
 # # Query-Tables and their attributes
 #
@@ -81,6 +46,8 @@ import os
 #     # e.g. 'J1': {"A", "B"} etc
 # }
 
+
+db = Database(False)
 
 s = {}
 
