@@ -12,18 +12,18 @@ An implementation of ReJOIN: a learned join ordering optimizer, as described in 
 ## Some Running examples
 
 - Train target group 4 for 200 episodes
-sudo python3 main.py -e 200 -g 1 -tg 4 -se 100 -s ./saved_model/group4-200/
+`sudo python3 main.py -e 200 -g 1 -tg 4 -se 100 -s ./saved_model/group4-200/`
 
 Now the plots are in ./outputs folder (default) and the model in  ./saved_model/ 
 
 - Restore saved model and test group 4 
-sudo python3 main.py -e 3 -g 1 -tg 4 -r ./saved_model/group4-200/ --testing -o ./outputs/testing/
+`sudo python3 main.py -e 3 -g 1 -tg 4 -r ./saved_model/group4-200/ --testing -o ./outputs/testing/`
 
 
 - Restore saved model and keep training on group 5 for 500 episodes
-sudo python3 main.py -e 200 -g 1 -tg 5 -se 100 -r ./saved_model/group4-200/ -s ./saved_model/group5-500/
+`sudo python3 main.py -e 200 -g 1 -tg 5 -se 100 -r ./saved_model/group4-200/ -s ./saved_model/group5-500/`
 
-
+- Execute a single query `python main.py --query 3a --episodes 150`
 
 ## Program parameters
 
@@ -81,7 +81,4 @@ sudo python3 main.py -e 200 -g 1 -tg 5 -se 100 -r ./saved_model/group4-200/ -s .
 - Select phase (1 or 2)  
     "-p", "--phase"  
     default=1  
-    
-## Running examples
-- Execute a single query `python main.py --query 3a --episodes 150`
     
